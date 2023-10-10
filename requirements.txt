@@ -1,0 +1,10 @@
+cffi==1.16.0
+chess==1.10.0
+cssselect2==0.7.0
+defusedxml==0.7.1
+Pillow==10.0.1
+pycparser==2.21
+python-chess==1.999
+tinycss2==1.2.1
+tk==0.1.0
+webencodings==0.5.1
