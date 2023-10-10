@@ -14,7 +14,7 @@ class AlphaPawn:
         pass
 
     # Right now it chooses a random move of all legal move choies
-    def choose_move(self, board: chess.board) -> chess.Move:
+    def choose_move(self, board: chess.Board) -> chess.Move:
         """
         @brief: Choose a move for the current board state.
 
