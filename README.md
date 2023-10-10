@@ -14,7 +14,7 @@ From there you should have a local python version solely for this project.
 
 This is just a rough draft of the board with no fancy features, but you can pseudo-play yourself with it.
 
-Happy coding team!
+Happy coding team and remember to run "git checkout -b <branch-name>" so we aren't working in main.
 
 Assets for Chess Board
 
