@@ -1,9 +1,16 @@
 import AlphaPawn
 import chess.svg
 import tkinter as tk
-from tkinter import messagebox
+from tkinter import messagebox, ttk
 import random
-import tkinter.simpledialog as simpledialog
+
+PIECE_VALUES = {
+    chess.PAWN: 1,
+    chess.KNIGHT: 3,
+    chess.BISHOP: 3,
+    chess.ROOK: 5,
+    chess.QUEEN: 9
+}
 
 # TODO: Actually create the AI and maybe have different ones for different algos that we can choose between
 class AlphaPawn:
@@ -61,6 +68,9 @@ class ChessGUI:
         else:
             self.draw_board()
 
+        self.eval_bar = ttk.Progressbar(root, orient="horizontal", length=300, mode="determinate")
+        self.eval_bar.pack(pady=20)
+
     def choose_side(self):
         """
         Prompt the user to select a side.
@@ -72,6 +82,22 @@ class ChessGUI:
         else:
             self.player_color = chess.BLACK
             self.ai_color = chess.WHITE
+
+    def get_evaluation(self):
+        """
+        Simple evaluation based on material.
+        """
+        eval_value = 0
+        for piece_type, value in PIECE_VALUES.items():
+            eval_value += value * len(self.board.pieces(piece_type, chess.WHITE))
+            eval_value -= value * len(self.board.pieces(piece_type, chess.BLACK))
+        return eval_value
+
+    def update_eval_bar(self):
+        evaluation = self.get_evaluation()
+        normalized_eval = (evaluation + 39) / 78  # Normalize assuming max material difference is 39
+        self.eval_bar["value"] = normalized_eval * 100  # Convert to percentage for progress bar
+
 
     def start_game(self, player_color):
         """
@@ -179,6 +205,8 @@ class ChessGUI:
             else:  # If the move is not legal, just deselect the piece
                 self.selected_piece_square = None
                 self.draw_board()
+
+        self.update_eval_bar()
 
     def game_over(self):
         """
