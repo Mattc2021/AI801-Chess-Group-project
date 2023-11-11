@@ -3,34 +3,133 @@ import chess.svg
 import tkinter as tk
 from tkinter import messagebox, ttk
 import random
+import numpy as np
 
 PIECE_VALUES = {
     chess.PAWN: 1,
     chess.KNIGHT: 3,
     chess.BISHOP: 3,
     chess.ROOK: 5,
-    chess.QUEEN: 9
+    chess.QUEEN: 9,
+    chess.KING: 100
+    
 }
 
-# TODO: Actually create the AI and maybe have different ones for different algos that we can choose between
-class AlphaPawn:
-    """
-    @brief Represents a basic AI for the chess game.
-    @brief Currently, the AI chooses a random legal move.
-    """
+import tensorflow.python.keras as tfk
+import tensorflow as tf
+
+class CNNChessModel:
     def __init__(self):
-        pass
+        self.model = self.build_cnn()
 
-    # Right now it chooses a random move of all legal move choies
-    def choose_move(self, board: chess.Board) -> chess.Move:
-        """
-        @brief: Choose a move for the current board state.
+    def build_cnn(self):
+        # Build and compile the CNN model using TensorFlow
+        model = tfk.Sequential([
+            tfk.layers.Conv2D(64, (3, 3), activation='relu', input_shape=(8, 8, 12)),
+            tfk.layers.Flatten(),
+            tfk.layers.Dense(64, activation='relu'),
+            tfk.layers.Dense(4096, activation='linear')  # Using linear activation for raw probabilities
+        ])
+        model.compile(optimizer='adam', loss='categorical_crossentropy')
+        return model
 
-        @parameter: board (chess.board): The current game state.
-        @returns: chess.Move: A random legal move.
-        """
+
+# Define MCTS algorithm
+class MCTS:
+    def __init__(self, cnn_model):
+        self.cnn_model = cnn_model
+        # Other MCTS initialization code
+
+    def select_move(self, board):
+        # Use the CNN to guide move selection in MCTS
         legal_moves = list(board.legal_moves)
-        return random.choice(legal_moves)
+        move_probabilities = {}
+        
+        for move in legal_moves:
+            # Generate board after making a move
+            board.push(move)
+            
+            # Process the board state to make it suitable for the CNN
+            processed_board = self.process_board(board)
+            
+            # Get move probabilities from the CNN
+            # Assuming processed_board shape is (1, 8, 8, 1) and model expects the last axis to be 12
+            processed_board = tf.concat([processed_board] * 12, axis=-1)
+            model = self.cnn_model.model
+            move_prob = model(processed_board)
+
+            # Ensure probabilities are 1D and sum to 1
+            move_prob = np.squeeze(move_prob)
+            move_prob = move_prob / np.sum(move_prob)
+
+
+            move_probabilities[move] = move_prob
+            
+            # Undo the move for the next iteration
+            board.pop()
+        
+        # Choose the move based on probabilities, perhaps by using some MCTS policy
+        chosen_move = self.choose_based_on_probabilities(move_probabilities)
+        return chosen_move
+
+    def process_board(self, board):
+        # Convert the board state to a format suitable for the CNN input
+        board_representation = []
+        for square in chess.SQUARES:
+            piece = board.piece_at(square)
+            if piece is not None:
+                print(set(PIECE_VALUES.keys()))
+                print(piece.piece_type)
+                piece_value = PIECE_VALUES[piece.piece_type] * (1 if piece.color == board.turn else -1)
+                board_representation.append(piece_value)
+            else:
+                board_representation.append(0)
+
+        # Reshape the representation to fit the CNN input shape
+        processed_board = tf.convert_to_tensor([board_representation], dtype=tf.float32)
+        processed_board = tf.reshape(processed_board, (1, 8, 8, 1))  # Reshape the tensor
+
+        
+        return processed_board
+
+
+    def choose_based_on_probabilities(self, move_probabilities):
+        legal_moves = list(move_probabilities.keys())
+
+        if len(legal_moves) == 0:
+            return self.choose_default_move()  # No legal moves; choose a default move
+
+        adjusted_probabilities = {}
+        for move, probs in move_probabilities.items():
+            total_prob = sum(probs)
+            normalized_probs = [p / total_prob for p in probs] if total_prob > 0 else [1 / len(probs)] * len(probs)
+            adjusted_probabilities[move] = sum(normalized_probs)
+
+        # Use NumPy to normalize the probabilities
+        total_prob = sum(adjusted_probabilities.values())
+        normalized_probabilities = {move: prob / total_prob for move, prob in adjusted_probabilities.items()}
+
+        # Choose a move with the adjusted probabilities
+        chosen_move = np.random.choice(list(normalized_probabilities.keys()), p=list(normalized_probabilities.values()))
+
+        return chosen_move
+
+
+    def choose_default_move(self):
+        legal_moves = list(self.board.legal_moves)
+        return np.random.choice(legal_moves)
+
+
+
+# AlphaPawn class using MCTS and CNN
+class AlphaPawn:
+    def __init__(self):
+        self.cnn_model = CNNChessModel()
+        self.mcts = MCTS(self.cnn_model)
+
+    def choose_move(self, board):
+        return self.mcts.select_move(board)
+
 
 
 class ChessGUI:
@@ -84,14 +183,26 @@ class ChessGUI:
             self.ai_color = chess.WHITE
 
     def get_evaluation(self):
-        """
-        Simple evaluation based on material.
-        """
-        eval_value = 0
-        for piece_type, value in PIECE_VALUES.items():
-            eval_value += value * len(self.board.pieces(piece_type, chess.WHITE))
-            eval_value -= value * len(self.board.pieces(piece_type, chess.BLACK))
-        return eval_value
+        # Number of pieces remaining for both players
+        white_piece_count = sum(len(self.board.pieces(piece_type, chess.WHITE)) for piece_type in PIECE_VALUES)
+        black_piece_count = sum(len(self.board.pieces(piece_type, chess.BLACK)) for piece_type in PIECE_VALUES)
+
+        # Factor for mobility based on the number of legal moves available
+        white_mobility = len(list(self.board.legal_moves))
+        self.board.turn = chess.BLACK  # Switch turns to assess opponent's mobility
+        black_mobility = len(list(self.board.legal_moves))
+        self.board.turn = chess.WHITE  # Switch back to original turn
+
+        # Factor for king safety (e.g., distance from the center)
+        white_king_square = self.board.king(chess.WHITE)
+        black_king_square = self.board.king(chess.BLACK)
+        white_king_safety = abs(chess.square_file(white_king_square) - 4) + abs(chess.square_rank(white_king_square) - 4)
+        black_king_safety = abs(chess.square_file(black_king_square) - 4) + abs(chess.square_rank(black_king_square) - 4)
+
+        # Normalize the evaluations and return a combined score
+        evaluation = (white_piece_count - black_piece_count) + 0.2 * (white_mobility - black_mobility) + 0.1 * (white_king_safety - black_king_safety)
+        return evaluation
+
 
     def update_eval_bar(self):
         evaluation = self.get_evaluation()
