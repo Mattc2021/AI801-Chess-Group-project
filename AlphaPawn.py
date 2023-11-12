@@ -78,8 +78,8 @@ class MCTS:
         for square in chess.SQUARES:
             piece = board.piece_at(square)
             if piece is not None:
-                print(set(PIECE_VALUES.keys()))
-                print(piece.piece_type)
+                #print(set(PIECE_VALUES.keys()))
+                #print(piece.piece_type)
                 piece_value = PIECE_VALUES[piece.piece_type] * (1 if piece.color == board.turn else -1)
                 board_representation.append(piece_value)
             else:
@@ -346,6 +346,9 @@ class ChessGUI:
         else:
             # Default to Queen if an invalid choice or the dialog is closed
             return chess.QUEEN
+
+
+
 
 if __name__ == "__main__":
     root = tk.Tk()
