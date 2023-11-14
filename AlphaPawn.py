@@ -4,6 +4,8 @@ import tkinter as tk
 from tkinter import messagebox, ttk
 import random
 import numpy as np
+import threading
+import time
 
 PIECE_VALUES = {
     chess.PAWN: 1,
@@ -49,7 +51,6 @@ class MCTS:
             # Generate board after making a move
             board.push(move)
             
-            # Process the board state to make it suitable for the CNN
             processed_board = self.process_board(board)
             
             # Get move probabilities from the CNN
@@ -148,7 +149,8 @@ class ChessGUI:
         self.board = chess.Board()
         self.ai = AlphaPawn()
         self.piece_images = piece_images
-
+        print("starting thread...")
+        threading.Thread(target=self.print_turn_periodically, daemon=True).start()
         # Attributes for game state
         self.player_color = chess.WHITE
         self.ai_color = chess.BLACK
@@ -209,15 +211,21 @@ class ChessGUI:
         normalized_eval = (evaluation + 39) / 78  # Normalize assuming max material difference is 39
         self.eval_bar["value"] = normalized_eval * 100  # Convert to percentage for progress bar
 
-
+    def print_turn_periodically(self):
+        while True:
+            print(f"Player's Turn: {self.board.turn==self.player_color}")  # Print the current player's turn
+            time.sleep(5)  # Wait for 5 seconds
+            
     def start_game(self, player_color):
+
         """
         Start the game after the player chooses a side.
         """
         self.player_color = player_color
         self.ai_color = chess.WHITE if player_color == chess.BLACK else chess.BLACK
         self.side_window.destroy()
-        
+
+
         # Rest of the initialization here...
         self.board = chess.Board()
         self.ai = AlphaPawn()
@@ -231,6 +239,7 @@ class ChessGUI:
 
         self.canvas.bind("<Button-1>", self.on_square_clicked)
         self.selected_piece_square = None
+        
 
     def draw_board(self):
         """
@@ -273,23 +282,24 @@ class ChessGUI:
     def on_square_clicked(self, event: tk.Event):
         """
         @brief: Handle square click events to make player moves.
-
+    
         @paramter: event (tk.Event): The click event.
         """
-
-        
         col = event.x // 50
         row = 7 - event.y // 50
         square = chess.square(col, row)
 
         if self.selected_piece_square == square:  # Deselect the piece
+            print("Deselecting the piece")
             self.selected_piece_square = None
             self.draw_board()  # Redraw the board to remove highlighted valid moves
             return
 
         if self.selected_piece_square is None:
+            print("Selected piece square is None")
             piece = self.board.piece_at(square)
             if piece and piece.color == self.board.turn:
+                print("Selected piece belongs to the player's turn")
                 self.selected_piece_square = square
                 self.draw_board()  # Redraw the board to show highlighted valid moves
                 # Highlight valid moves for the selected piece
@@ -298,15 +308,17 @@ class ChessGUI:
                         x, y = chess.square_file(move.to_square), chess.square_rank(move.to_square)
                         self.canvas.create_oval(x * 50 + 10, (7 - y) * 50 + 10, (x + 1) * 50 - 10, (7 - y + 1) * 50 - 10, fill="blue")
         else:
+            print("Selected piece square is not None")
             move = chess.Move(self.selected_piece_square, square)
             # Check for pawn promotion
             selected_piece = self.board.piece_at(self.selected_piece_square)
             if selected_piece and selected_piece.piece_type == chess.PAWN:
                 if (self.board.turn == chess.WHITE and chess.square_rank(square) == 7) or \
-                   (self.board.turn == chess.BLACK and chess.square_rank(square) == 0):
+                        (self.board.turn == chess.BLACK and chess.square_rank(square) == 0):
                     move = chess.Move(self.selected_piece_square, square, promotion=chess.QUEEN)
-
+            # I  nailed it down to this being the explict cause of the system bugging out while playing as black.
             if move in self.board.legal_moves:
+                print("Move is legal")
                 self.board.push(move)
                 self.draw_board()
                 if self.board.is_game_over():
@@ -314,6 +326,7 @@ class ChessGUI:
                 elif self.board.turn == self.ai_color:
                     self.ai_move()
             else:  # If the move is not legal, just deselect the piece
+                print("Move is not legal. Deselecting the piece")
                 self.selected_piece_square = None
                 self.draw_board()
 
