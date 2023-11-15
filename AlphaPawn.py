@@ -1,3 +1,4 @@
+from copy import copy, deepcopy
 import AlphaPawn
 import chess.svg
 import tkinter as tk
@@ -191,7 +192,7 @@ class ChessGUI:
     def get_evaluation(self):
         print("--get_evaluation--")
         # Number of pieces remaining for both players
-        self.board2 = self.board
+        self.board2 = deepcopy(self.board)
         white_piece_count = sum(len(self.board2.pieces(piece_type, chess.WHITE)) for piece_type in PIECE_VALUES)
         black_piece_count = sum(len(self.board2.pieces(piece_type, chess.BLACK)) for piece_type in PIECE_VALUES)
 
@@ -325,6 +326,7 @@ class ChessGUI:
                 self.selected_piece_square = square
                 self.draw_board()  # Redraw the board to show highlighted valid moves
                 # Highlight valid moves for the selected piece
+                print("populating legal moves")
                 for move in self.board.legal_moves:
                     
                     if move.from_square == square:
@@ -337,11 +339,13 @@ class ChessGUI:
             # Check for pawn promotion
             selected_piece = self.board.piece_at(self.selected_piece_square)
             if selected_piece and selected_piece.piece_type == chess.PAWN:
-                print("Checking for promotion.")
+                # Check if the pawn reaches the end of the board for promotion
                 if (self.board.turn == chess.WHITE and chess.square_rank(square) == 7) or \
-                        (self.board.turn == chess.BLACK and chess.square_rank(square) == 0):
-                    print("Piece eligible for promotion.")
-                    move = chess.Move(self.selected_piece_square, square, promotion=chess.QUEEN)
+                    (self.board.turn == chess.BLACK and chess.square_rank(square) == 0):
+                    # Ask for pawn promotion choice
+                    promotion_choice = self.promote_pawn(self.board.turn)
+                    move = chess.Move(self.selected_piece_square, square, promotion=promotion_choice)
+
             # I  nailed it down to this being the explict cause of the system bugging out while playing as black.
             if move in self.board.legal_moves:
                 print("Move is legal")
