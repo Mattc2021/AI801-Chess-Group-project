@@ -144,16 +144,17 @@ class ChessGUI:
         @parameter: root (tk.Tk): The tkinter root widget.
         @parameter: piece_images (dict): Dictionary mapping piece symbols to images.
         """
+        print("--ChessGUI __init__--")
 
         self.root = root
         self.board = chess.Board()
         self.ai = AlphaPawn()
         self.piece_images = piece_images
         print("starting thread...")
+        self.choose_side()
         threading.Thread(target=self.print_turn_periodically, daemon=True).start()
         # Attributes for game state
-        self.player_color = chess.WHITE
-        self.ai_color = chess.BLACK
+
         self.selected_piece_square = None
 
         # Canvas for the board
@@ -161,11 +162,12 @@ class ChessGUI:
         self.canvas.pack(pady=20)
         self.canvas.bind("<Button-1>", self.on_square_clicked)
 
-        self.choose_side()
+     
 
         # If the player chose Black, make the AI's first move immediately
         if self.ai_color == chess.WHITE:
             self.ai_move()
+            self.board.turn == self.player_color
         else:
             self.draw_board()
 
@@ -176,6 +178,8 @@ class ChessGUI:
         """
         Prompt the user to select a side.
         """
+        
+        print("--choose_side--")
         response = messagebox.askquestion("Choose Side", "Do you want to play as White?")
         if response == 'yes':
             self.player_color = chess.WHITE
@@ -185,19 +189,21 @@ class ChessGUI:
             self.ai_color = chess.WHITE
 
     def get_evaluation(self):
+        print("--get_evaluation--")
         # Number of pieces remaining for both players
-        white_piece_count = sum(len(self.board.pieces(piece_type, chess.WHITE)) for piece_type in PIECE_VALUES)
-        black_piece_count = sum(len(self.board.pieces(piece_type, chess.BLACK)) for piece_type in PIECE_VALUES)
+        self.board2 = self.board
+        white_piece_count = sum(len(self.board2.pieces(piece_type, chess.WHITE)) for piece_type in PIECE_VALUES)
+        black_piece_count = sum(len(self.board2.pieces(piece_type, chess.BLACK)) for piece_type in PIECE_VALUES)
 
         # Factor for mobility based on the number of legal moves available
-        white_mobility = len(list(self.board.legal_moves))
-        self.board.turn = chess.BLACK  # Switch turns to assess opponent's mobility
-        black_mobility = len(list(self.board.legal_moves))
-        self.board.turn = chess.WHITE  # Switch back to original turn
+        white_mobility = len(list(self.board2.legal_moves))
+        self.board2.turn = chess.BLACK  # Switch turns to assess opponent's mobility
+        black_mobility = len(list(self.board2.legal_moves))
+        self.board2.turn = chess.WHITE  # Switch back to original turn
 
         # Factor for king safety (e.g., distance from the center)
-        white_king_square = self.board.king(chess.WHITE)
-        black_king_square = self.board.king(chess.BLACK)
+        white_king_square = self.board2.king(chess.WHITE)
+        black_king_square = self.board2.king(chess.BLACK)
         white_king_safety = abs(chess.square_file(white_king_square) - 4) + abs(chess.square_rank(white_king_square) - 4)
         black_king_safety = abs(chess.square_file(black_king_square) - 4) + abs(chess.square_rank(black_king_square) - 4)
 
@@ -207,13 +213,20 @@ class ChessGUI:
 
 
     def update_eval_bar(self):
+        print("--update_eval_bar--")
         evaluation = self.get_evaluation()
         normalized_eval = (evaluation + 39) / 78  # Normalize assuming max material difference is 39
         self.eval_bar["value"] = normalized_eval * 100  # Convert to percentage for progress bar
 
     def print_turn_periodically(self):
         while True:
+            print("---")
             print(f"Player's Turn: {self.board.turn==self.player_color}")  # Print the current player's turn
+            if (self.player_color==False):
+                print("Player's color: Black")
+            else:
+                print("Player's color: White")
+            print("---")
             time.sleep(5)  # Wait for 5 seconds
             
     def start_game(self, player_color):
@@ -221,6 +234,9 @@ class ChessGUI:
         """
         Start the game after the player chooses a side.
         """
+        
+        print("--start_game--")
+        
         self.player_color = player_color
         self.ai_color = chess.WHITE if player_color == chess.BLACK else chess.BLACK
         self.side_window.destroy()
@@ -245,6 +261,8 @@ class ChessGUI:
         """
         @brief: Draw the chessboard and place the pieces on the board
         """
+        print("--draw_board--")
+        
         # Clear the previous canvas content
         self.canvas.delete("all")
 
@@ -273,6 +291,9 @@ class ChessGUI:
         """
         @brief: Execute an AI move on the board.
         """
+        
+        print("--ai_move--")
+        
         move = self.ai.choose_move(self.board)
         self.board.push(move)
         self.draw_board()
@@ -285,6 +306,8 @@ class ChessGUI:
     
         @paramter: event (tk.Event): The click event.
         """
+        print("--on_square_clicked--")
+        
         col = event.x // 50
         row = 7 - event.y // 50
         square = chess.square(col, row)
@@ -294,7 +317,6 @@ class ChessGUI:
             self.selected_piece_square = None
             self.draw_board()  # Redraw the board to remove highlighted valid moves
             return
-
         if self.selected_piece_square is None:
             print("Selected piece square is None")
             piece = self.board.piece_at(square)
@@ -304,17 +326,21 @@ class ChessGUI:
                 self.draw_board()  # Redraw the board to show highlighted valid moves
                 # Highlight valid moves for the selected piece
                 for move in self.board.legal_moves:
+                    
                     if move.from_square == square:
                         x, y = chess.square_file(move.to_square), chess.square_rank(move.to_square)
                         self.canvas.create_oval(x * 50 + 10, (7 - y) * 50 + 10, (x + 1) * 50 - 10, (7 - y + 1) * 50 - 10, fill="blue")
+                print("Legal moves populated. Players turn?", self.player_color==self.board.turn)
         else:
             print("Selected piece square is not None")
             move = chess.Move(self.selected_piece_square, square)
             # Check for pawn promotion
             selected_piece = self.board.piece_at(self.selected_piece_square)
             if selected_piece and selected_piece.piece_type == chess.PAWN:
+                print("Checking for promotion.")
                 if (self.board.turn == chess.WHITE and chess.square_rank(square) == 7) or \
                         (self.board.turn == chess.BLACK and chess.square_rank(square) == 0):
+                    print("Piece eligible for promotion.")
                     move = chess.Move(self.selected_piece_square, square, promotion=chess.QUEEN)
             # I  nailed it down to this being the explict cause of the system bugging out while playing as black.
             if move in self.board.legal_moves:
@@ -324,18 +350,22 @@ class ChessGUI:
                 if self.board.is_game_over():
                     self.game_over()
                 elif self.board.turn == self.ai_color:
+                    print("AI's move")
                     self.ai_move()
             else:  # If the move is not legal, just deselect the piece
                 print("Move is not legal. Deselecting the piece")
                 self.selected_piece_square = None
                 self.draw_board()
-
-        self.update_eval_bar()
+        # eval bar is causing turn tracking to be off. 
+        # self.update_eval_bar()
 
     def game_over(self):
         """
         @brief: Handle game over scenarios and display the results
         """
+        
+        print("--game_over--")
+        
         result = "Draw" if self.board.result() == "1/2-1/2" else "Win for " + ("White" if "1-0" == self.board.result() else "Black")
         messagebox.showinfo("Game Over", f"Game Over! Result: {result}")
         self.board.reset()
@@ -345,7 +375,8 @@ class ChessGUI:
         """
         Open a dialog to let the user choose a piece for pawn promotion.
         """
-
+        print("--promote_pawn--")
+        
         pieces = {
             "Queen": chess.QUEEN,
             "Rook": chess.ROOK,
@@ -365,7 +396,7 @@ class ChessGUI:
 
 if __name__ == "__main__":
     root = tk.Tk()
-    root.title("Chess AI with AlphaPawn")
+    root.title("Strategos Chess")
 
     # Load images
     piece_names = ['wp', 'wn', 'wb', 'wr', 'wq', 'wk', 'bp', 'bn', 'bb', 'br', 'bq', 'bk']
