@@ -1,4 +1,4 @@
-from AlphaPawn import AlphaPawn
+from alpha_pawn import AlphaPawn
 import chess
 import numpy as np
 import torch
@@ -43,7 +43,7 @@ class ChessSimulation:
             self.save_tensors(tensor_states, game_num, evaluations)
 
         self.engine.quit()
-        self.write_to_csv("chess_simulation_results.csv")
+        self.write_to_csv("../assets/chess_simulation_results.csv")
 
     def play_game(self, white, black):
         board = chess.Board()
@@ -102,7 +102,7 @@ class ChessSimulation:
             return 'Draw'
 
     def save_tensors(self, tensor_states, game_num, evaluations):
-        file_name = f"./chess_position_tensors/chess_game_{game_num}_states_{str(date.today())}.pt"
+        file_name = f"../assets/chess_position_tensors/chess_game_{game_num}_states_{str(date.today())}.pt"
         torch.save({"states": tensor_states, "evaluations": evaluations}, file_name)
         print(f"Saved {len(tensor_states)} tensors and evaluations to {file_name}")
 
@@ -114,9 +114,9 @@ class ChessSimulation:
                 writer.writerow(game_result)
 
 if __name__ == "__main__":
-    num_simulated_games = 20  # Adjust the number of games as needed
+    num_simulated_games = 1  # Adjust the number of games as needed
     ai_player = AlphaPawn()  # Your AI
-    stockfish_path = "./stockfish-windows-x86-64-avx2.exe"  # Replace with your Stockfish path
+    stockfish_path = "../assets/stockfish-windows-x86-64-avx2.exe"  # Replace with your Stockfish path
 
     simulation = ChessSimulation(num_simulated_games, "Stockfish", "Stockfish", stockfish_path)
     simulation.run_simulation()
