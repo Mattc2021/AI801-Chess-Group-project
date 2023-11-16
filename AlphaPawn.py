@@ -87,33 +87,39 @@ class MCTS:
         # Other MCTS initialization code
 
     def select_move(self, board):
-        # Use the CNN to guide move selection in MCTS
-        legal_moves = list(board.legal_moves)
-        move_probabilities = {}
+        # Use MCTS for move selection
+        chosen_move_mcts = self.run_mcts(board)
+
+        # Use Alpha-Beta Pruning with the MCTS-chosen move as the starting point
+        chosen_move_ab = self.alpha_beta_pruning(board, chosen_move_mcts)
+
+        return chosen_move_ab
+
+    def run_mcts(self, board):
+        # Implement MCTS algorithm here
+        # This method should build a tree, perform simulations, and select a move
+        # Placeholder implementation:
+        best_move_mcts = None
+        # ... MCTS logic ...
+        return best_move_mcts
+
+    def alpha_beta_pruning(self, board, chosen_move):
+        # Implement Alpha-Beta Pruning for move selection, using the MCTS-chosen move
+        best_move_ab = None
+        alpha = -float('inf')
+        beta = float('inf')
+        max_val = -float('inf')
         
+        legal_moves = [chosen_move] if chosen_move else list(board.legal_moves)  # Start with the MCTS-chosen move if available
         for move in legal_moves:
-            # Generate board after making a move
             board.push(move)
-            
-            processed_board = self.process_board(board)
-            
-            # Get move probabilities from the CNN
-            processed_board = tf.concat([processed_board] * 12, axis=-1)
-            model = self.cnn_model.model
-            move_prob = model(processed_board)
-
-            # Ensure probabilities are 1D and sum to 1
-            move_prob = np.squeeze(move_prob)
-            move_prob = move_prob / np.sum(move_prob)
-
-            move_probabilities[move] = move_prob
-            
-            # Undo the move for the next iteration
+            val = self.min_value(board, alpha, beta, 0)
             board.pop()
-        
-        # Choose the move based on probabilities and Alpha-Beta Pruning
-        chosen_move = self.alpha_beta_pruning(board)
-        return chosen_move
+            if val > max_val:
+                max_val = val
+                best_move_ab = move
+            alpha = max(alpha, max_val)
+        return best_move_ab
 
     def process_board(self, board):
         # Convert the board state to a format suitable for the CNN input
@@ -131,24 +137,6 @@ class MCTS:
         processed_board = tf.reshape(processed_board, (1, 8, 8, 1))
         
         return processed_board
-
-    def alpha_beta_pruning(self, board):
-        # Implement Alpha-Beta Pruning for move selection
-        best_move = None
-        alpha = -float('inf')
-        beta = float('inf')
-        max_val = -float('inf')
-        
-        legal_moves = list(board.legal_moves)
-        for move in legal_moves:
-            board.push(move)
-            val = self.min_value(board, alpha, beta, 0)
-            board.pop()
-            if val > max_val:
-                max_val = val
-                best_move = move
-            alpha = max(alpha, max_val)
-        return best_move
 
     def max_value(self, board, alpha, beta, depth):
         # Maximizer function for Alpha-Beta Pruning
@@ -183,7 +171,7 @@ class MCTS:
                 return val
             beta = min(beta, val)
         return val
-
+    
     def evaluate(self, board):
         piece_values = {
             chess.PAWN: 1,
