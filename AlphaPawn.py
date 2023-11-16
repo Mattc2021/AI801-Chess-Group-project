@@ -98,7 +98,6 @@ class MCTS:
             processed_board = self.process_board(board)
             
             # Get move probabilities from the CNN
-            # Assuming processed_board shape is (1, 8, 8, 1) and model expects the last axis to be 12
             processed_board = tf.concat([processed_board] * 12, axis=-1)
             model = self.cnn_model.model
             move_prob = model(processed_board)
@@ -107,14 +106,13 @@ class MCTS:
             move_prob = np.squeeze(move_prob)
             move_prob = move_prob / np.sum(move_prob)
 
-
             move_probabilities[move] = move_prob
             
             # Undo the move for the next iteration
             board.pop()
         
-        # Choose the move based on probabilities, perhaps by using some MCTS policy
-        chosen_move = self.choose_based_on_probabilities(move_probabilities)
+        # Choose the move based on probabilities and Alpha-Beta Pruning
+        chosen_move = self.alpha_beta_pruning(board)
         return chosen_move
 
     def process_board(self, board):
@@ -123,8 +121,6 @@ class MCTS:
         for square in chess.SQUARES:
             piece = board.piece_at(square)
             if piece is not None:
-                #print(set(PIECE_VALUES.keys()))
-                #print(piece.piece_type)
                 piece_value = PIECE_VALUES[piece.piece_type] * (1 if piece.color == board.turn else -1)
                 board_representation.append(piece_value)
             else:
@@ -132,37 +128,126 @@ class MCTS:
 
         # Reshape the representation to fit the CNN input shape
         processed_board = tf.convert_to_tensor([board_representation], dtype=tf.float32)
-        processed_board = tf.reshape(processed_board, (1, 8, 8, 1))  # Reshape the tensor
-
+        processed_board = tf.reshape(processed_board, (1, 8, 8, 1))
         
         return processed_board
 
+    def alpha_beta_pruning(self, board):
+        # Implement Alpha-Beta Pruning for move selection
+        best_move = None
+        alpha = -float('inf')
+        beta = float('inf')
+        max_val = -float('inf')
+        
+        legal_moves = list(board.legal_moves)
+        for move in legal_moves:
+            board.push(move)
+            val = self.min_value(board, alpha, beta, 0)
+            board.pop()
+            if val > max_val:
+                max_val = val
+                best_move = move
+            alpha = max(alpha, max_val)
+        return best_move
 
-    def choose_based_on_probabilities(self, move_probabilities):
-        legal_moves = list(move_probabilities.keys())
+    def max_value(self, board, alpha, beta, depth):
+        # Maximizer function for Alpha-Beta Pruning
+        if depth == 0 or board.is_game_over():
+            # Return evaluation function or utility value
+            return self.evaluate(board)
+        
+        val = -float('inf')
+        legal_moves = list(board.legal_moves)
+        for move in legal_moves:
+            board.push(move)
+            val = max(val, self.min_value(board, alpha, beta, depth + 1))
+            board.pop()
+            if val >= beta:
+                return val
+            alpha = max(alpha, val)
+        return val
 
-        if len(legal_moves) == 0:
-            return self.choose_default_move()  # No legal moves; choose a default move
+    def min_value(self, board, alpha, beta, depth):
+        # Minimizer function for Alpha-Beta Pruning
+        if depth == 0 or board.is_game_over():
+            # Return evaluation function or utility value
+            return self.evaluate(board)
+        
+        val = float('inf')
+        legal_moves = list(board.legal_moves)
+        for move in legal_moves:
+            board.push(move)
+            val = min(val, self.max_value(board, alpha, beta, depth + 1))
+            board.pop()
+            if val <= alpha:
+                return val
+            beta = min(beta, val)
+        return val
 
-        adjusted_probabilities = {}
-        for move, probs in move_probabilities.items():
-            total_prob = sum(probs)
-            normalized_probs = [p / total_prob for p in probs] if total_prob > 0 else [1 / len(probs)] * len(probs)
-            adjusted_probabilities[move] = sum(normalized_probs)
+    def evaluate(self, board):
+        piece_values = {
+            chess.PAWN: 1,
+            chess.KNIGHT: 3,
+            chess.BISHOP: 3,
+            chess.ROOK: 5,
+            chess.QUEEN: 9,
+            chess.KING: 100
+        }
 
-        # Use NumPy to normalize the probabilities
-        total_prob = sum(adjusted_probabilities.values())
-        normalized_probabilities = {move: prob / total_prob for move, prob in adjusted_probabilities.items()}
+        # Evaluation weights for different factors
+        material_weight = 1.0
+        mobility_weight = 0.5
+        pawn_structure_weight = 0.3
+        king_safety_weight = 0.2
+        center_control_weight = 0.4
 
-        # Choose a move with the adjusted probabilities
-        chosen_move = np.random.choice(list(normalized_probabilities.keys()), p=list(normalized_probabilities.values()))
+        score = 0
 
-        return chosen_move
+        # Material advantage
+        for square in chess.SQUARES:
+            piece = board.piece_at(square)
+            if piece is not None:
+                if piece.color == chess.WHITE:
+                    score += piece_values[piece.piece_type]
+                else:
+                    score -= piece_values[piece.piece_type]
 
+        # Mobility - Number of legal moves available
+        white_mobility = len(list(board.legal_moves))
+        board.turn = chess.BLACK  # Switch turns to assess opponent's mobility
+        black_mobility = len(list(board.legal_moves))
+        board.turn = chess.WHITE  # Switch back to original turn
+        mobility = white_mobility - black_mobility
+        score += mobility_weight * mobility
 
-    def choose_default_move(self):
-        legal_moves = list(self.board.legal_moves)
-        return np.random.choice(legal_moves)
+        # Pawn structure - Evaluation based on pawn structure can be complex
+        # Here, a simple evaluation based on the number of pawns present is used
+        white_pawns = len(board.pieces(chess.PAWN, chess.WHITE))
+        black_pawns = len(board.pieces(chess.PAWN, chess.BLACK))
+        pawn_structure = white_pawns - black_pawns
+        score += pawn_structure_weight * pawn_structure
+
+        # King safety - Distance of kings from the center
+        white_king_square = board.king(chess.WHITE)
+        black_king_square = board.king(chess.BLACK)
+        white_king_safety = abs(chess.square_file(white_king_square) - 4) + abs(chess.square_rank(white_king_square) - 4)
+        black_king_safety = abs(chess.square_file(black_king_square) - 4) + abs(chess.square_rank(black_king_square) - 4)
+        king_safety = black_king_safety - white_king_safety
+        score += king_safety_weight * king_safety
+
+        # Control of the center - Presence of pieces in the center
+        center_control = 0
+        center_squares = [chess.E4, chess.D4, chess.E5, chess.D5]
+        for square in center_squares:
+            piece = board.piece_at(square)
+            if piece is not None:
+                if piece.color == chess.WHITE:
+                    center_control += 1
+                else:
+                    center_control -= 1
+        score += center_control_weight * center_control
+
+        return score
 
 
 
