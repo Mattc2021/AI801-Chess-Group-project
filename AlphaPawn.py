@@ -175,7 +175,30 @@ class AlphaPawn:
     def choose_move(self, board):
         return self.mcts.select_move(board)
 
+class PawnPromotionDialog:
+    def __init__(self, parent):
+        self.parent = parent
+        self.piece_chosen = None
+        
+        self.dialog = tk.Toplevel(parent)
+        self.dialog.title("Pawn Promotion")
+        
+        label = tk.Label(self.dialog, text="Choose a piece for promotion:")
+        label.pack()
 
+        self.promotion_choice = tk.StringVar()
+
+        pieces = ["Queen", "Rook", "Bishop", "Knight"]
+        for piece in pieces:
+            rb = tk.Radiobutton(self.dialog, text=piece, variable=self.promotion_choice, value=piece)
+            rb.pack(anchor='w')
+        
+        confirm_button = tk.Button(self.dialog, text="Confirm", command=self.confirm)
+        confirm_button.pack()
+
+    def confirm(self):
+        self.piece_chosen = self.promotion_choice.get()
+        self.dialog.destroy()
 
 class ChessGUI:
     """
@@ -423,9 +446,12 @@ class ChessGUI:
 
     def promote_pawn(self, color: chess.Color) -> chess.PieceType:
         """
-        Open a dialog to let the user choose a piece for pawn promotion.
+        Open a custom dialog to let the user choose a piece for pawn promotion.
         """
         print("--promote_pawn--")
+        
+        dialog = PawnPromotionDialog(self.root)
+        self.root.wait_window(dialog.dialog)
         
         pieces = {
             "Queen": chess.QUEEN,
@@ -434,9 +460,9 @@ class ChessGUI:
             "Knight": chess.KNIGHT
         }
 
-        choice = tk.simpledialog.askstring("Pawn Promotion", "Choose a piece (Queen, Rook, Bishop, Knight):", parent=self.root)
-        if choice in pieces:
-            return pieces[choice]
+        chosen_piece = dialog.piece_chosen
+        if chosen_piece in pieces:
+            return pieces[chosen_piece]
         else:
             # Default to Queen if an invalid choice or the dialog is closed
             return chess.QUEEN
