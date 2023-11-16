@@ -82,26 +82,62 @@ class CNNChessModel:
 
 # Define MCTS algorithm
 class MCTS:
-    def __init__(self, cnn_model):
+    def __init__(self, cnn_model, exploration_factor=1.0):
         self.cnn_model = cnn_model
-        # Other MCTS initialization code
+        self.exploration_factor = exploration_factor
 
     def select_move(self, board):
-        # Use MCTS for move selection
         chosen_move_mcts = self.run_mcts(board)
-
-        # Use Alpha-Beta Pruning with the MCTS-chosen move as the starting point
         chosen_move_ab = self.alpha_beta_pruning(board, chosen_move_mcts)
-
         return chosen_move_ab
 
     def run_mcts(self, board):
-        # Implement MCTS algorithm here
-        # This method should build a tree, perform simulations, and select a move
-        # Placeholder implementation:
-        best_move_mcts = None
-        # ... MCTS logic ...
+        possible_moves = list(board.legal_moves)
+        move_visits = {move: 0 for move in possible_moves}
+        total_simulations = 5  # Number of simulations - adjust as needed
+
+        for _ in range(total_simulations):
+            self.simulate(board.copy(), move_visits)
+
+        best_move_mcts = max(possible_moves, key=lambda move: move_visits[move])
         return best_move_mcts
+
+    def simulate(self, board, move_visits):
+        possible_moves = list(board.legal_moves)
+
+        # Placeholder: Implement more sophisticated exploration here
+        # Example: UCB (Upper Confidence Bound) exploration strategy
+        exploration_values = {
+            move: move_visits[move] + self.exploration_factor * np.sqrt(np.log(sum(move_visits.values()) + 1) / (move_visits[move] + 1e-6))
+            for move in possible_moves
+        }
+
+        # Choose the move based on exploration values
+        chosen_move = max(exploration_values, key=lambda move: exploration_values[move])
+
+        # Update visit count for the chosen move
+        move_visits[chosen_move] += 1
+
+        # Perform a rollout or playout (simulation) from the chosen move
+        self.rollout(board, chosen_move)
+
+        # Update other MCTS-related logic based on the chosen move
+        # Expand, evaluate, and backpropagate based on the simulation result
+
+    def rollout(self, board, move):
+        rollout_board = board.copy()
+        rollout_board.push(move)  # Apply the chosen move to the board
+
+        while not rollout_board.is_game_over():
+            possible_moves = list(rollout_board.legal_moves)
+            random_move = random.choice(possible_moves)  # Choose a random move
+            rollout_board.push(random_move)  # Apply the random move to the board
+
+        # Once the game is over, you might want to evaluate the final state
+        # This evaluation could involve the evaluate method or a different approach based on the game's rules
+
+        # Return the evaluation of the final board state
+        return self.evaluate(rollout_board)
 
     def alpha_beta_pruning(self, board, chosen_move):
         # Implement Alpha-Beta Pruning for move selection, using the MCTS-chosen move
@@ -355,9 +391,12 @@ class ChessGUI:
 
     def update_eval_bar(self):
         print("--update_eval_bar--")
-        evaluation = self.get_evaluation()
-        normalized_eval = (evaluation + 39) / 78  # Normalize assuming max material difference is 39
-        self.eval_bar["value"] = normalized_eval * 100  # Convert to percentage for progress bar
+        try:
+            evaluation = self.get_evaluation()
+            normalized_eval = (evaluation + 39) / 78  # Normalize assuming max material difference is 39
+            self.eval_bar["value"] = normalized_eval * 100  # Convert to percentage for progress bar
+        except:
+            print("!!! Progress Bar Update Failed !!!")
 
     def print_turn_periodically(self):
         while True:
@@ -373,9 +412,6 @@ class ChessGUI:
 
             
     def start_game(self):
-        """
-        Start the game after the player chooses a side.
-        """
         print("--start_game--")
         self.choose_side()
         self.board = chess.Board()
@@ -388,7 +424,8 @@ class ChessGUI:
         self.canvas.pack(pady=20)
         self.canvas.bind("<Button-1>", self.on_square_clicked)
 
-     
+        # Create or reset the progress bar
+        self.create_or_reset_progress_bar()
 
         # If the player chose Black, make the AI's first move immediately
         if self.ai_color == chess.WHITE:
@@ -397,11 +434,18 @@ class ChessGUI:
         else:
             self.draw_board()
 
-        self.eval_bar = ttk.Progressbar(root, orient="horizontal", length=300, mode="determinate")
-        self.eval_bar.pack(pady=20)
+    def create_or_reset_progress_bar(self):
+        # Check if the progress bar already exists
+        if hasattr(self, 'eval_bar') and self.eval_bar:
+            # If it exists, reset it to 0%
+            self.eval_bar.destroy()
+            self.eval_bar = ttk.Progressbar(root, orient="horizontal", length=300, mode="determinate")
+            self.eval_bar.pack(pady=20)
+        else:
+            # Otherwise, create a new progress bar
+            self.eval_bar = ttk.Progressbar(root, orient="horizontal", length=300, mode="determinate")
+            self.eval_bar.pack(pady=20)
 
-
- 
 
     def draw_board(self):
         """
@@ -434,18 +478,13 @@ class ChessGUI:
 
 
     def ai_move(self):
-        """
-        @brief: Execute an AI move on the board.
-        """
-        
         print("--ai_move--")
-        
         move = self.ai.choose_move(self.board)
         self.board.push(move)
         self.draw_board()
         if self.board.is_game_over():
             self.game_over()
-
+        self.update_eval_bar() 
     def on_square_clicked(self, event: tk.Event):
         """
         @brief: Handle square click events to make player moves.
