@@ -4,6 +4,7 @@ import time
 from tensorflow.keras.models import load_model, Sequential
 from tensorflow.keras.layers import Conv2D, Flatten, Dense
 from tensorflow.keras import Model as KerasModel
+import tensorflow.keras as tfk
 
 class CNNChessModel:
     def __init__(self):

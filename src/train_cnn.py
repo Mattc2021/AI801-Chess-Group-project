@@ -46,38 +46,40 @@ def one_hot_encode_board(board_state):
             one_hot_board[i, j, piece_to_index[piece]] = 1
     return one_hot_board
 
-def augment_data(board_states):
+def augment_data(board_states, evaluations):
     """Apply data augmentation like rotation or mirroring."""
     augmented_data = []
-    for state in board_states:
+    augmented_evaluations = []
+    for state, eval in zip(board_states, evaluations):
         # Add original state
         augmented_data.append(state)
+        augmented_evaluations.append(eval)
         # Add rotated states
         for _ in range(3):
             state = np.rot90(state)
             augmented_data.append(state)
+            augmented_evaluations.append(eval)  # Append the same evaluation
         # Add mirrored state
         mirrored_state = np.flip(state, axis=1)
         augmented_data.append(mirrored_state)
-    return augmented_data
+        augmented_evaluations.append(eval)  # Append the same evaluation
+    return augmented_data, augmented_evaluations
 
 def preprocess_data(data):
     """Preprocess the chess board states."""
     board_states = data['states']
     evaluations = data['evaluations']
 
-    # Normalize evaluations (if they are not categorical labels)
-    evaluations = (np.array(evaluations) + 1000) / 2000  # Example normalization
+    # Normalize evaluations
+    evaluations = (np.array(evaluations) + 1000) / 2000
 
-    # Preprocess and augment each board state
+    # Preprocess each board state
     processed_states = [one_hot_encode_board(state.numpy()) for state in board_states]
-    processed_states = augment_data(processed_states)
 
-    # Convert to numpy arrays and split into features and labels
-    X = np.array(processed_states, dtype=np.float32)
-    y = np.array(evaluations, dtype=np.float32)
+    # Augment data and replicate evaluations accordingly
+    processed_states, processed_evaluations = augment_data(processed_states, evaluations)
 
-    return X, y
+    return np.array(processed_states, dtype=np.float32), np.array(processed_evaluations, dtype=np.float32)
 
 class ChessDataGenerator(Sequence):
     def __init__(self, X, y, batch_size):
