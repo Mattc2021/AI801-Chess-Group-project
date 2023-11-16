@@ -372,33 +372,36 @@ class ChessGUI:
             
 
             
-    def start_game(self, player_color):
-
+    def start_game(self):
         """
         Start the game after the player chooses a side.
         """
-        
         print("--start_game--")
-        
-        self.player_color = player_color
-        self.ai_color = chess.WHITE if player_color == chess.BLACK else chess.BLACK
-        self.side_window.destroy()
-
-
-        # Rest of the initialization here...
+        self.choose_side()
         self.board = chess.Board()
         self.ai = AlphaPawn()
 
-        self.canvas = tk.Canvas(self.root, width=400, height=400)
-        self.canvas.pack(pady=20)
-        self.draw_board()
-
-        self.button = tk.Button(self.root, text="Make AI Move", command=self.ai_move)
-        self.button.pack(pady=20)
-
-        self.canvas.bind("<Button-1>", self.on_square_clicked)
         self.selected_piece_square = None
-        
+
+        # Canvas for the board
+        self.canvas = tk.Canvas(root, width=400, height=400)
+        self.canvas.pack(pady=20)
+        self.canvas.bind("<Button-1>", self.on_square_clicked)
+
+     
+
+        # If the player chose Black, make the AI's first move immediately
+        if self.ai_color == chess.WHITE:
+            self.ai_move()
+            self.board.turn == self.player_color
+        else:
+            self.draw_board()
+
+        self.eval_bar = ttk.Progressbar(root, orient="horizontal", length=300, mode="determinate")
+        self.eval_bar.pack(pady=20)
+
+
+ 
 
     def draw_board(self):
         """
@@ -509,14 +512,18 @@ class ChessGUI:
         """
         @brief: Handle game over scenarios and display the results
         """
-        
         print("--game_over--")
-        
         result = "Draw" if self.board.result() == "1/2-1/2" else "Win for " + ("White" if "1-0" == self.board.result() else "Black")
         messagebox.showinfo("Game Over", f"Game Over! Result: {result}")
-        self.board.reset()
-        self.draw_board()
-
+        
+        # Destroy the canvas and button
+        self.canvas.destroy()
+        self.eval_bar.destroy()
+      
+        
+        # Restart the game by prompting the player to choose a side again
+        self.start_game()
+        
     def promote_pawn(self, color: chess.Color) -> chess.PieceType:
         """
         Open a custom dialog to let the user choose a piece for pawn promotion.
