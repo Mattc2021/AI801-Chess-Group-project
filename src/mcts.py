@@ -5,9 +5,10 @@ from utils import PIECE_VALUES
 
 # Define MCTS algorithm
 class MCTS:
-    def __init__(self, cnn_model, exploration_factor=1.0):
+    def __init__(self, cnn_model, exploration_factor=1.0, temperature=1.0):
         self.cnn_model = cnn_model
         self.exploration_factor = exploration_factor
+        self.temperature = temperature
 
     def select_move(self, board):
         chosen_move_mcts = self.run_mcts(board)
@@ -28,24 +29,23 @@ class MCTS:
     def simulate(self, board, move_visits):
         possible_moves = list(board.legal_moves)
 
-        # Placeholder: Implement more sophisticated exploration here
-        # Example: UCB (Upper Confidence Bound) exploration strategy
-        exploration_values = {
-            move: move_visits[move] + self.exploration_factor * np.sqrt(np.log(sum(move_visits.values()) + 1) / (move_visits[move] + 1e-6))
-            for move in possible_moves
-        }
+        # Implement Softmax (Temperature parameter) for exploration
+        action_probabilities = [move_visits[move] ** (1 / self.temperature) for move in possible_moves]
+        total_prob = sum(action_probabilities)
 
-        # Choose the move based on exploration values
-        chosen_move = max(exploration_values, key=lambda move: exploration_values[move])
+        if total_prob == 0:
+            # If all action_probabilities are zero, assign equal probabilities
+            action_probabilities = [1 / len(possible_moves) for _ in possible_moves]
+        else:
+            action_probabilities = [prob / total_prob for prob in action_probabilities]
+
+        chosen_move = np.random.choice(possible_moves, p=action_probabilities)
 
         # Update visit count for the chosen move
         move_visits[chosen_move] += 1
 
-        # Perform a rollout or playout (simulation) from the chosen move
+        # Perform rollout from the chosen move
         self.rollout(board, chosen_move)
-
-        # Update other MCTS-related logic based on the chosen move
-        # Expand, evaluate, and backpropagate based on the simulation result
 
     def rollout(self, board, move):
         rollout_board = board.copy()
