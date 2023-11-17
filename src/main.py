@@ -1,6 +1,8 @@
 import tkinter as tk
 from chess_gui import ChessGUI
-
+import chess.svg
+import tkinter as tk
+from tkinter import messagebox, ttk
 if __name__ == "__main__":
    
     root = tk.Tk()
@@ -11,7 +13,7 @@ if __name__ == "__main__":
     piece_images = {}
 
     for name in piece_names:
-        image_path = f"../assets/{name}.png"
+        image_path = f"./assets/{name}.png"
         original_image = tk.PhotoImage(file=image_path)
         
         # Resize the image to fit the square (assuming 50x50 squares for this example)

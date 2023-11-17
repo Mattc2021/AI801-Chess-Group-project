@@ -115,7 +115,7 @@ class ChessGUI:
         self.selected_piece_square = None
 
         # Canvas for the board
-        self.canvas = tk.Canvas(root, width=400, height=400)
+        self.canvas = tk.Canvas(self.root, width=400, height=400)
         self.canvas.pack(pady=20)
         self.canvas.bind("<Button-1>", self.on_square_clicked)
 
@@ -134,11 +134,11 @@ class ChessGUI:
         if hasattr(self, 'eval_bar') and self.eval_bar:
             # If it exists, reset it to 0%
             self.eval_bar.destroy()
-            self.eval_bar = ttk.Progressbar(root, orient="horizontal", length=300, mode="determinate")
+            self.eval_bar = ttk.Progressbar(self.root, orient="horizontal", length=300, mode="determinate")
             self.eval_bar.pack(pady=20)
         else:
             # Otherwise, create a new progress bar
-            self.eval_bar = ttk.Progressbar(root, orient="horizontal", length=300, mode="determinate")
+            self.eval_bar = ttk.Progressbar(self.root, orient="horizontal", length=300, mode="determinate")
             self.eval_bar.pack(pady=20)
 
 
