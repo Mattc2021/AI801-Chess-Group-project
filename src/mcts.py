@@ -2,7 +2,7 @@ import random
 import numpy as np
 import chess
 from utils import PIECE_VALUES
-
+import tensorflow as tf
 # Define MCTS algorithm
 class MCTS:
     def __init__(self, cnn_model, exploration_factor=1.0, temperature=1.0):
