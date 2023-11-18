@@ -13,7 +13,7 @@ if __name__ == "__main__":
     piece_images = {}
 
     for name in piece_names:
-        image_path = f"./assets/{name}.png"
+        image_path = f"../assets/{name}.png"
         original_image = tk.PhotoImage(file=image_path)
         
         # Resize the image to fit the square (assuming 50x50 squares for this example)

@@ -5,6 +5,8 @@ import chess.svg
 from alpha_pawn import AlphaPawn
 import threading
 import time
+from copy import deepcopy
+from utils import PIECE_VALUES
 
 class ChessGUI:
     """

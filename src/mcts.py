@@ -18,7 +18,7 @@ class MCTS:
     def run_mcts(self, board):
         possible_moves = list(board.legal_moves)
         move_visits = {move: 0 for move in possible_moves}
-        total_simulations = 5  # Number of simulations - adjust as needed
+        total_simulations = 50  # Number of simulations - adjust as needed
 
         for _ in range(total_simulations):
             self.simulate(board.copy(), move_visits)

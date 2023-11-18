@@ -123,12 +123,12 @@ class ChessSimulation:
         return openings
 
 if __name__ == "__main__":
-    num_simulated_games = 10  # Adjust the number of games as needed
+    num_simulated_games = 5  # Adjust the number of games as needed
     ai_player = AlphaPawn()  # Your AI
     stockfish_path = "../assets/stockfish-windows-x86-64-avx2.exe"  # Replace with your Stockfish path
     openings_database = "../assets/chess_openings.txt"
 
-    simulation = ChessSimulation(num_simulated_games, "Stockfish", "Stockfish", stockfish_path, openings_database)
+    simulation = ChessSimulation(num_simulated_games, ai_player, "Stockfish", stockfish_path, openings_database)
     simulation.run_simulation()
 
     print("Simulation complete. Tensors and game results saved.")
