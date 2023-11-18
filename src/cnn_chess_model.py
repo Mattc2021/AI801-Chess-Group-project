@@ -1,10 +1,11 @@
 import os
 import threading
 import time
-from tensorflow.keras.models import load_model, Sequential
-from tensorflow.keras.layers import Conv2D, Flatten, Dense
-from tensorflow.keras import Model as KerasModel
-import tensorflow.keras as tfk
+from tensorflow import keras as tfk
+from keras.models import load_model, Sequential
+from keras.layers import Conv2D, Flatten, Dense
+from keras import Model as KerasModel
+
 
 class CNNChessModel:
     def __init__(self):
