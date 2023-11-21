@@ -13,10 +13,10 @@ import numpy as np
 
 class CNNChessModel:
     def __init__(self):
-        self.model = self.load_or_build_cnn()
-        self.SAVE_PATH = "C:\\StrategosAI"  # Define the save path
+        
+        self.SAVE_PATH = os.path.join(os.getcwd(), "StrategosCNNModel")
         self.MODEL_NAME = 'saved_model'
-       
+        self.model = self.load_or_build_cnn()
         threading.Thread(target=self.CNN_autosave, daemon=True).start()
 
     def build_cnn(self):
@@ -31,22 +31,26 @@ class CNNChessModel:
         return model
     
     def load_or_build_cnn(self):
-        # Check if the directory and model file exist
-        self.SAVE_PATH = "C:\\StrategosAI"
-        self.MODEL_NAME = 'saved_model'
-        if os.path.exists(os.path.join(self.SAVE_PATH, self.MODEL_NAME)):
-            # Load the model if the file exists
+        if not os.path.exists(self.SAVE_PATH):
+            os.makedirs(self.SAVE_PATH)
+
+        model_path = os.path.join(self.SAVE_PATH, self.MODEL_NAME)
+
+        if os.path.exists(model_path):
             try:
-                loaded_model = load_model(os.path.join(self.SAVE_PATH, self.MODEL_NAME))
+                self.model = load_model(model_path)
                 print("Model loaded successfully.")
-                return loaded_model
             except Exception as e:
                 print("Error loading the model:", e)
                 print("Building a new model...")
-                return self.build_cnn()
+                self.model = self.build_cnn()
         else:
             print(f"No model found in {self.SAVE_PATH}. Building a new model...")
-            return self.build_cnn()
+            self.model = self.build_cnn()
+
+        return self.model
+
+       
         
     def CNN_autosave(self):
         while True:

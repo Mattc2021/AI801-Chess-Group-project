@@ -18,7 +18,7 @@ class MCTS:
     def run_mcts(self, board):
         possible_moves = list(board.legal_moves)
         move_visits = {move: 0 for move in possible_moves}
-        total_simulations = 50  # Number of simulations - adjust as needed
+        total_simulations = 10  # Number of simulations - adjust as needed. NOTE: HIGHER SIMULATION COUNT WILL RESULT IN LONGER PROCESSING TIMES.
 
         for _ in range(total_simulations):
             self.simulate(board.copy(), move_visits)
@@ -82,7 +82,6 @@ class MCTS:
 
 
     def process_board(self, board):
-        # Convert the board state to a format suitable for the CNN input
         board_representation = []
         for square in chess.SQUARES:
             piece = board.piece_at(square)
@@ -95,24 +94,31 @@ class MCTS:
                 board_representation.extend(features)
             else:
                 # Placeholder for empty squares
-                board_representation.extend([0] * 12)  # Fill with zeros for empty squares
+                board_representation.extend([0] * 9)  # Fill with zeros for empty squares, assuming 9 features per square
+
+        # Debug statement to print the actual size of the board representation constructed
+        print(f"Actual size of board representation: {len(board_representation)}")
 
         # Check if the size matches the intended shape before reshaping
-        expected_size = 8 * 8 * 12
+        expected_size = 8 * 8 * 9  # Update to the correct number of features per square
         actual_size = len(board_representation)
-        print(f"Actual size of board representation: {actual_size}")
 
         if actual_size != expected_size:
             print(f"Expected size: {expected_size}, Actual size: {actual_size}")
-            # Pad the board representation if its size doesn't match the expected size
-            board_representation.extend([0] * (expected_size - actual_size))
+            # Handle or log the size mismatch appropriately
+            return None
 
-        # Reshape the representation to fit the expected CNN input shape (8, 8, 12)
-        processed_board = np.array(board_representation).reshape(8, 8, 12)
-        processed_board = np.expand_dims(processed_board, axis=0)  # Add batch dimension
+        # Reshape the representation to fit the expected CNN input shape (8, 8, 1)
+        processed_board = np.array(board_representation).reshape(8, 8, 9)  # Adjust the shape here
+        processed_board = np.moveaxis(processed_board, -1, 0)  # Move channel axis to the front
+        processed_board = np.expand_dims(processed_board, axis=-1)  # Add a single channel dimension
         processed_board = tf.convert_to_tensor(processed_board, dtype=tf.float32)
 
         return processed_board
+
+
+
+
 
 
 
