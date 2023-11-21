@@ -5,7 +5,8 @@ import chess.svg
 from alpha_pawn import AlphaPawn
 import threading
 import time
-
+from copy import deepcopy
+import traceback
 class ChessGUI:
     """
     Creates a Graphical User Interface for the chess game using tkinter.
@@ -18,14 +19,14 @@ class ChessGUI:
         @parameter: piece_images (dict): Dictionary mapping piece symbols to images.
         """
         print("--ChessGUI __init__--")
-
+        self.eval_bar = ttk.Progressbar(root, orient="horizontal", length=300, mode="determinate")
         self.root = root
         self.board = chess.Board()
         self.ai = AlphaPawn()
         self.piece_images = piece_images
+        self.PIECE_VALUES = {chess.PAWN: 1, chess.KNIGHT: 3, chess.BISHOP: 3, chess.ROOK: 5, chess.QUEEN: 9, chess.KING: 100}
         print("starting thread...")
         self.choose_side()
-   
         threading.Thread(target=self.print_turn_periodically, daemon=True).start()
         # Attributes for game state
 
@@ -42,9 +43,10 @@ class ChessGUI:
             self.board.turn == self.player_color
         else:
             self.draw_board()
+            
 
-        self.eval_bar = ttk.Progressbar(root, orient="horizontal", length=300, mode="determinate")
         self.eval_bar.pack(pady=20)
+        threading.Thread(target=self.update_eval_bar_periodically, daemon=True).start()
 
     def choose_side(self):
         """
@@ -61,11 +63,15 @@ class ChessGUI:
             self.ai_color = chess.WHITE
 
     def get_evaluation(self):
+        """
+        @brief: Method to calculate a simple evaluation score for the current chess board state.
+        """
         print("--get_evaluation--")
+        
         # Number of pieces remaining for both players
         self.board2 = deepcopy(self.board)
-        white_piece_count = sum(len(self.board2.pieces(piece_type, chess.WHITE)) for piece_type in PIECE_VALUES)
-        black_piece_count = sum(len(self.board2.pieces(piece_type, chess.BLACK)) for piece_type in PIECE_VALUES)
+        white_piece_count = sum(len(self.board2.pieces(piece_type, chess.WHITE)) for piece_type in self.PIECE_VALUES)
+        black_piece_count = sum(len(self.board2.pieces(piece_type, chess.BLACK)) for piece_type in self.PIECE_VALUES)
 
         # Factor for mobility based on the number of legal moves available
         white_mobility = len(list(self.board2.legal_moves))
@@ -90,9 +96,15 @@ class ChessGUI:
             evaluation = self.get_evaluation()
             normalized_eval = (evaluation + 39) / 78  # Normalize assuming max material difference is 39
             self.eval_bar["value"] = normalized_eval * 100  # Convert to percentage for progress bar
-        except:
+        except Exception as e:
             print("!!! Progress Bar Update Failed !!!")
-
+            traceback.print_exc()  # Print the exception traceback
+            
+    def update_eval_bar_periodically(self):
+        while True:
+            self.update_eval_bar()
+            time.sleep(5)  # Update the progress bar every 5 seconds
+        
     def print_turn_periodically(self):
         while True:
             print("---")
@@ -180,6 +192,7 @@ class ChessGUI:
         if self.board.is_game_over():
             self.game_over()
         self.update_eval_bar() 
+        
     def on_square_clicked(self, event: tk.Event):
         """
         @brief: Handle square click events to make player moves.

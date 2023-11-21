@@ -71,7 +71,7 @@ class MCTS:
         
         legal_moves = [chosen_move] if chosen_move else list(board.legal_moves)  # Start with the MCTS-chosen move if available
         for move in legal_moves:
-            board.push(move)
+            board.push(move) 
             val = self.min_value(board, alpha, beta, 0)
             board.pop()
             if val > max_val:
@@ -80,22 +80,46 @@ class MCTS:
             alpha = max(alpha, max_val)
         return best_move_ab
 
+
     def process_board(self, board):
         # Convert the board state to a format suitable for the CNN input
         board_representation = []
         for square in chess.SQUARES:
             piece = board.piece_at(square)
             if piece is not None:
+                # Append piece values and color as features
                 piece_value = PIECE_VALUES[piece.piece_type] * (1 if piece.color == board.turn else -1)
-                board_representation.append(piece_value)
+                one_hot_piece_type = tf.one_hot(piece.piece_type - 1, 6)  # Assuming 6 piece types
+                one_hot_color = tf.one_hot(int(piece.color), 2)  # Assuming 2 colors (0 for black, 1 for white)
+                features = [piece_value] + list(one_hot_piece_type.numpy()) + list(one_hot_color.numpy())
+                board_representation.extend(features)
             else:
-                board_representation.append(0)
+                # Placeholder for empty squares
+                board_representation.extend([0] * 12)  # Fill with zeros for empty squares
 
-        # Reshape the representation to fit the CNN input shape
-        processed_board = tf.convert_to_tensor([board_representation], dtype=tf.float32)
-        processed_board = tf.reshape(processed_board, (1, 8, 8, 1))
-        
+        # Check if the size matches the intended shape before reshaping
+        expected_size = 8 * 8 * 12
+        actual_size = len(board_representation)
+        print(f"Actual size of board representation: {actual_size}")
+
+        if actual_size != expected_size:
+            print(f"Expected size: {expected_size}, Actual size: {actual_size}")
+            # Pad the board representation if its size doesn't match the expected size
+            board_representation.extend([0] * (expected_size - actual_size))
+
+        # Reshape the representation to fit the expected CNN input shape (8, 8, 12)
+        processed_board = np.array(board_representation).reshape(8, 8, 12)
+        processed_board = np.expand_dims(processed_board, axis=0)  # Add batch dimension
+        processed_board = tf.convert_to_tensor(processed_board, dtype=tf.float32)
+
         return processed_board
+
+
+
+
+
+
+
 
     def max_value(self, board, alpha, beta, depth):
         # Maximizer function for Alpha-Beta Pruning
@@ -131,6 +155,7 @@ class MCTS:
             beta = min(beta, val)
         return val
     
+    
     def evaluate(self, board):
         piece_values = {
             chess.PAWN: 1,
@@ -147,6 +172,7 @@ class MCTS:
         pawn_structure_weight = 0.3
         king_safety_weight = 0.2
         center_control_weight = 0.4
+        cnn_weight = 0.6  # Adjust this weight for the CNN output
 
         score = 0
 
@@ -194,4 +220,27 @@ class MCTS:
                     center_control -= 1
         score += center_control_weight * center_control
 
-        return score
+        # Convert the board state for CNN input
+        processed_board = self.process_board(board)
+
+        # Pass the processed board through the CNN model
+        cnn_evaluation = self.cnn_model.predict(processed_board)
+
+        # Use the CNN output in the evaluation
+        print("CNN Evaluation:", cnn_evaluation)
+        cnn_score = float(cnn_evaluation[0, 0])  # Accessing the specific value from the NumPy array
+
+
+
+
+        # Combine the CNN evaluation with other evaluation factors using weights
+        combined_score = (
+            material_weight * score +
+            mobility_weight * mobility +
+            pawn_structure_weight * pawn_structure +
+            king_safety_weight * king_safety +
+            center_control_weight * center_control +
+            cnn_weight * cnn_score  # Adjust the weight for the CNN output
+        )
+
+        return combined_score
