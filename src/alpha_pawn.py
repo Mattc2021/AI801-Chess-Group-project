@@ -1,6 +1,7 @@
 from mcts import MCTS
 from cnn_chess_model import CNNChessModel
 
+
 class AlphaPawn:
     def __init__(self):
         self.cnn_model = CNNChessModel()

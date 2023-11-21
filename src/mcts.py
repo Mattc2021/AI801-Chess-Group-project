@@ -3,6 +3,8 @@ import numpy as np
 import chess
 from utils import PIECE_VALUES
 import tensorflow as tf
+
+
 # Define MCTS algorithm
 class MCTS:
     def __init__(self, cnn_model, exploration_factor=1.0, temperature=1.0):
@@ -30,7 +32,9 @@ class MCTS:
         possible_moves = list(board.legal_moves)
 
         # Implement Softmax (Temperature parameter) for exploration
-        action_probabilities = [move_visits[move] ** (1 / self.temperature) for move in possible_moves]
+        action_probabilities = [
+            move_visits[move] ** (1 / self.temperature) for move in possible_moves
+        ]
         total_prob = sum(action_probabilities)
 
         if total_prob == 0:
@@ -65,13 +69,15 @@ class MCTS:
     def alpha_beta_pruning(self, board, chosen_move):
         # Implement Alpha-Beta Pruning for move selection, using the MCTS-chosen move
         best_move_ab = None
-        alpha = -float('inf')
-        beta = float('inf')
-        max_val = -float('inf')
-        
-        legal_moves = [chosen_move] if chosen_move else list(board.legal_moves)  # Start with the MCTS-chosen move if available
+        alpha = -float("inf")
+        beta = float("inf")
+        max_val = -float("inf")
+
+        legal_moves = (
+            [chosen_move] if chosen_move else list(board.legal_moves)
+        )  # Start with the MCTS-chosen move if available
         for move in legal_moves:
-            board.push(move) 
+            board.push(move)
             val = self.min_value(board, alpha, beta, 0)
             board.pop()
             if val > max_val:
@@ -80,21 +86,32 @@ class MCTS:
             alpha = max(alpha, max_val)
         return best_move_ab
 
-
     def process_board(self, board):
         board_representation = []
         for square in chess.SQUARES:
             piece = board.piece_at(square)
             if piece is not None:
                 # Append piece values and color as features
-                piece_value = PIECE_VALUES[piece.piece_type] * (1 if piece.color == board.turn else -1)
-                one_hot_piece_type = tf.one_hot(piece.piece_type - 1, 6)  # Assuming 6 piece types
-                one_hot_color = tf.one_hot(int(piece.color), 2)  # Assuming 2 colors (0 for black, 1 for white)
-                features = [piece_value] + list(one_hot_piece_type.numpy()) + list(one_hot_color.numpy())
+                piece_value = PIECE_VALUES[piece.piece_type] * (
+                    1 if piece.color == board.turn else -1
+                )
+                one_hot_piece_type = tf.one_hot(
+                    piece.piece_type - 1, 6
+                )  # Assuming 6 piece types
+                one_hot_color = tf.one_hot(
+                    int(piece.color), 2
+                )  # Assuming 2 colors (0 for black, 1 for white)
+                features = (
+                    [piece_value]
+                    + list(one_hot_piece_type.numpy())
+                    + list(one_hot_color.numpy())
+                )
                 board_representation.extend(features)
             else:
                 # Placeholder for empty squares
-                board_representation.extend([0] * 9)  # Fill with zeros for empty squares, assuming 9 features per square
+                board_representation.extend(
+                    [0] * 9
+                )  # Fill with zeros for empty squares, assuming 9 features per square
 
         # Debug statement to print the actual size of the board representation constructed
         print(f"Actual size of board representation: {len(board_representation)}")
@@ -109,31 +126,26 @@ class MCTS:
             return None
 
         # Reshape the representation to fit the expected CNN input shape (8, 8, 1)
-        processed_board = np.array(board_representation).reshape(8, 8, 9)  # Adjust the shape here
-        processed_board = np.moveaxis(processed_board, -1, 0)  # Move channel axis to the front
-        processed_board = np.expand_dims(processed_board, axis=-1)  # Add a single channel dimension
+        processed_board = np.array(board_representation).reshape(
+            8, 8, 9
+        )  # Adjust the shape here
+        processed_board = np.moveaxis(
+            processed_board, -1, 0
+        )  # Move channel axis to the front
+        processed_board = np.expand_dims(
+            processed_board, axis=-1
+        )  # Add a single channel dimension
         processed_board = tf.convert_to_tensor(processed_board, dtype=tf.float32)
 
         return processed_board
-
-
-
-
-
-
-
-
-
-
-
 
     def max_value(self, board, alpha, beta, depth):
         # Maximizer function for Alpha-Beta Pruning
         if depth == 0 or board.is_game_over():
             # Return evaluation function or utility value
             return self.evaluate(board)
-        
-        val = -float('inf')
+
+        val = -float("inf")
         legal_moves = list(board.legal_moves)
         for move in legal_moves:
             board.push(move)
@@ -149,8 +161,8 @@ class MCTS:
         if depth == 0 or board.is_game_over():
             # Return evaluation function or utility value
             return self.evaluate(board)
-        
-        val = float('inf')
+
+        val = float("inf")
         legal_moves = list(board.legal_moves)
         for move in legal_moves:
             board.push(move)
@@ -160,8 +172,7 @@ class MCTS:
                 return val
             beta = min(beta, val)
         return val
-    
-    
+
     def evaluate(self, board):
         piece_values = {
             chess.PAWN: 1,
@@ -169,7 +180,7 @@ class MCTS:
             chess.BISHOP: 3,
             chess.ROOK: 5,
             chess.QUEEN: 9,
-            chess.KING: 100
+            chess.KING: 100,
         }
 
         # Evaluation weights for different factors
@@ -209,8 +220,12 @@ class MCTS:
         # King safety - Distance of kings from the center
         white_king_square = board.king(chess.WHITE)
         black_king_square = board.king(chess.BLACK)
-        white_king_safety = abs(chess.square_file(white_king_square) - 4) + abs(chess.square_rank(white_king_square) - 4)
-        black_king_safety = abs(chess.square_file(black_king_square) - 4) + abs(chess.square_rank(black_king_square) - 4)
+        white_king_safety = abs(chess.square_file(white_king_square) - 4) + abs(
+            chess.square_rank(white_king_square) - 4
+        )
+        black_king_safety = abs(chess.square_file(black_king_square) - 4) + abs(
+            chess.square_rank(black_king_square) - 4
+        )
         king_safety = black_king_safety - white_king_safety
         score += king_safety_weight * king_safety
 
@@ -234,19 +249,18 @@ class MCTS:
 
         # Use the CNN output in the evaluation
         print("CNN Evaluation:", cnn_evaluation)
-        cnn_score = float(cnn_evaluation[0, 0])  # Accessing the specific value from the NumPy array
-
-
-
+        cnn_score = float(
+            cnn_evaluation[0, 0]
+        )  # Accessing the specific value from the NumPy array
 
         # Combine the CNN evaluation with other evaluation factors using weights
         combined_score = (
-            material_weight * score +
-            mobility_weight * mobility +
-            pawn_structure_weight * pawn_structure +
-            king_safety_weight * king_safety +
-            center_control_weight * center_control +
-            cnn_weight * cnn_score  # Adjust the weight for the CNN output
+            material_weight * score
+            + mobility_weight * mobility
+            + pawn_structure_weight * pawn_structure
+            + king_safety_weight * king_safety
+            + center_control_weight * center_control
+            + cnn_weight * cnn_score  # Adjust the weight for the CNN output
         )
 
         return combined_score

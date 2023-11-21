@@ -10,26 +10,30 @@ from keras import Model as KerasModel
 import numpy as np
 
 
-
 class CNNChessModel:
     def __init__(self):
-        
         self.SAVE_PATH = os.path.join(os.getcwd(), "StrategosCNNModel")
-        self.MODEL_NAME = 'saved_model'
+        self.MODEL_NAME = "saved_model"
         self.model = self.load_or_build_cnn()
         threading.Thread(target=self.CNN_autosave, daemon=True).start()
 
     def build_cnn(self):
         # Build and compile the CNN model using TensorFlow
-        model = tfk.Sequential([
-            tfk.layers.Conv2D(64, (3, 3), activation='relu', input_shape=(8, 8, 1)),  # Modified input shape
-            tfk.layers.Flatten(),
-            tfk.layers.Dense(64, activation='relu'),
-            tfk.layers.Dense(1, activation='linear')  # Single output unit for regression
-        ])
-        model.compile(optimizer='adam', loss='mean_squared_error')
+        model = tfk.Sequential(
+            [
+                tfk.layers.Conv2D(
+                    64, (3, 3), activation="relu", input_shape=(8, 8, 1)
+                ),  # Modified input shape
+                tfk.layers.Flatten(),
+                tfk.layers.Dense(64, activation="relu"),
+                tfk.layers.Dense(
+                    1, activation="linear"
+                ),  # Single output unit for regression
+            ]
+        )
+        model.compile(optimizer="adam", loss="mean_squared_error")
         return model
-    
+
     def load_or_build_cnn(self):
         if not os.path.exists(self.SAVE_PATH):
             os.makedirs(self.SAVE_PATH)
@@ -50,8 +54,6 @@ class CNNChessModel:
 
         return self.model
 
-       
-        
     def CNN_autosave(self):
         while True:
             # Save the model if it's available and is a Keras model
@@ -63,16 +65,13 @@ class CNNChessModel:
                     print("Error saving model:", e)
             else:
                 print("No Keras model available to save.")
-                
+
             time.sleep(15)  # Wait for 15 seconds
 
-
-
-    
     def predict(self, processed_board):
         # Ensure processed_board is a numpy array
         processed_board = np.array(processed_board)
-        
+
         # Make predictions using the model
         try:
             predictions = self.model.predict(processed_board)
