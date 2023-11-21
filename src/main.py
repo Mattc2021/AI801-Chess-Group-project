@@ -1,3 +1,4 @@
+import os
 import tkinter as tk
 from chess_gui import ChessGUI
 import chess.svg
@@ -13,7 +14,14 @@ if __name__ == "__main__":
     piece_images = {}
 
     for name in piece_names:
-        image_path = f"../assets/{name}.png"
+        # Check if the image exists in the first path
+        first_path = f"./assets/{name}.png"
+        if os.path.exists(first_path):
+            image_path = first_path
+        else:
+            # If the image does not exist in the first path, assign the second path
+            second_path = f"../assets/{name}.png"
+            image_path = second_path
         original_image = tk.PhotoImage(file=image_path)
         
         # Resize the image to fit the square (assuming 50x50 squares for this example)
