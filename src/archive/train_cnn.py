@@ -2,8 +2,7 @@ import torch
 import numpy as np
 import os
 from sklearn.model_selection import train_test_split
-from tensorflow.keras.utils import Sequence
-from tensorflow.keras.callbacks import ProgbarLogger
+from keras.utils import Sequence
 from cnn_chess_model import CNNChessModel
 from datetime import date
 
@@ -103,7 +102,7 @@ def train_model(X_train, y_train, X_val, y_val):
     training_generator = ChessDataGenerator(X_train, y_train, batch_size)
     validation_generator = ChessDataGenerator(X_val, y_val, batch_size)
 
-    cnn_model.fit(training_generator, epochs=epochs, validation_data=validation_generator, callbacks=[ProgbarLogger(count_mode='steps')])
+    cnn_model.fit(training_generator, epochs=epochs, validation_data=validation_generator)
 
     return cnn_model
 

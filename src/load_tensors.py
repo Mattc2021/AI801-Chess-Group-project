@@ -14,6 +14,6 @@ def display_tensor_info(tensor_states, evaluations):
         print(f"Stockfish Evaluation: {eval}")
 
 if __name__ == "__main__":
-    file_name = './chess_position_tensors/chess_game_0_states_2023-11-16.pt'  # Replace with your actual file name
+    file_name = '../assets/chess_position_tensors/chess_game_4_states_2023-11-18.pt'  # Replace with your actual file name
     tensor_states, evaluations = load_tensors(file_name)
     display_tensor_info(tensor_states, evaluations)
