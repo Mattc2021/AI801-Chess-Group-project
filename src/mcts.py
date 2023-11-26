@@ -20,7 +20,7 @@ class MCTS:
     def run_mcts(self, board):
         possible_moves = list(board.legal_moves)
         move_visits = {move: 0 for move in possible_moves}
-        total_simulations = 10  # Number of simulations - adjust as needed. NOTE: HIGHER SIMULATION COUNT WILL RESULT IN LONGER PROCESSING TIMES.
+        total_simulations = 50  # Number of simulations - adjust as needed. NOTE: HIGHER SIMULATION COUNT WILL RESULT IN LONGER PROCESSING TIMES.
 
         for _ in range(total_simulations):
             self.simulate(board.copy(), move_visits)
@@ -114,14 +114,14 @@ class MCTS:
                 )  # Fill with zeros for empty squares, assuming 9 features per square
 
         # Debug statement to print the actual size of the board representation constructed
-        print(f"Actual size of board representation: {len(board_representation)}")
+        #print(f"Actual size of board representation: {len(board_representation)}")
 
         # Check if the size matches the intended shape before reshaping
         expected_size = 8 * 8 * 9  # Update to the correct number of features per square
         actual_size = len(board_representation)
 
         if actual_size != expected_size:
-            print(f"Expected size: {expected_size}, Actual size: {actual_size}")
+            #print(f"Expected size: {expected_size}, Actual size: {actual_size}")
             # Handle or log the size mismatch appropriately
             return None
 
@@ -247,11 +247,13 @@ class MCTS:
         # Pass the processed board through the CNN model
         cnn_evaluation = self.cnn_model.predict(processed_board)
 
-        # Use the CNN output in the evaluation
-        print("CNN Evaluation:", cnn_evaluation)
-        cnn_score = float(
-            cnn_evaluation[0, 0]
-        )  # Accessing the specific value from the NumPy array
+         # Use the CNN output in the evaluation
+        #print("CNN Evaluation:", cnn_evaluation)
+        if cnn_evaluation is not None and cnn_evaluation.ndim == 2 and cnn_evaluation.shape[0] > 0:
+            cnn_score = float(cnn_evaluation[0, 0])
+        else:
+            print("Warning: Invalid CNN evaluation format.")
+            cnn_score = 0  # Default value or handle as needed
 
         # Combine the CNN evaluation with other evaluation factors using weights
         combined_score = (
