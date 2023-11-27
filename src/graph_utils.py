@@ -49,3 +49,13 @@ def plot_position_evaluation_over_time(evaluations_df, run_number, date_str):
     plt.ylabel('Evaluation Score')
     plt.legend()
     save_plot(plt, 'position_evaluation_over_time', run_number, date_str)
+
+def plot_game_lengths(move_counts, run_number, date_str):
+    plt.figure(figsize=(10, 6))
+    sns.lineplot(data=move_counts)
+    plt.title('Number of Moves per Game')
+    plt.xlabel('Game Number')
+    plt.ylabel('Number of Moves')
+    plt.xticks(ticks=range(len(move_counts)), labels=[f"Game {i+1}" for i in range(len(move_counts))])
+    plt.tight_layout()
+    save_plot(plt, 'game_lengths', run_number, date_str)

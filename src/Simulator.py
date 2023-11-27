@@ -10,6 +10,9 @@ import random
 from utils import PIECE_VALUES
 import graph_utils
 import pandas as pd
+from cnn_chess_model import CNNChessModel
+import torch.nn as nn
+import torch.optim as optim
 
 
 def board_to_matrix(board):
@@ -51,15 +54,24 @@ class ChessSimulation:
         self.openings = self.load_openings(openings_file_path)
         ChessSimulation.run_counter += 1
         self.current_run_number = ChessSimulation.run_counter
+        self.cnn_model = CNNChessModel()
 
     def run_simulation(self):
         self.engine = chess.engine.SimpleEngine.popen_uci(self.stockfish_path)
         date_str = datetime.now().strftime("%Y%m%d")
 
+        # Initialize an empty list to store the number of moves for each game
+        move_counts = []
+        all_training_data = []
+
         for game_num in tqdm(range(self.num_games), desc="Simulating Games", unit="game"):
             white, black = (self.player1, self.player2) if game_num % 2 == 0 else (self.player2, self.player1)
-            game_result = self.play_game(white, black)
+            game_result, game_training_data = self.play_game(white, black, game_num)
             self.results.append(game_result)
+            all_training_data.extend(game_training_data)
+
+            # Append the number of moves to the move_counts list
+            move_counts.append(game_result['move_count'])
 
         self.engine.quit()
         self.write_to_csv("../assets/chess_simulation_results.csv")
@@ -78,9 +90,17 @@ class ChessSimulation:
         graph_utils.plot_position_evaluation_over_time(evaluations_df, self.current_run_number, date_str)
 
         graph_utils.plot_win_loss_distribution(results_df, self.current_run_number, date_str)
-    
 
-    def play_game(self, white, black):
+        # After all games have been simulated, extract the move counts
+        move_counts = [result['move_count'] for result in self.results]
+        print(move_counts)
+
+        # Call the plotting function from graph_utils with the move counts
+        graph_utils.plot_game_lengths(move_counts, self.current_run_number, date_str)
+
+        return all_training_data
+    
+    def play_game(self, white, black, game_num):
         board = chess.Board()
         opening = random.choice(self.openings)
         board.set_fen(opening)
@@ -88,6 +108,8 @@ class ChessSimulation:
         evaluations = []
         moves = []
         material_advantage_data = []
+        move_count = 0
+        training_data = []
 
         while not board.is_game_over():
             if board.turn == chess.WHITE:
@@ -96,7 +118,11 @@ class ChessSimulation:
                 move = self.get_move(black, board)
 
             board.push(move)
-            tensor_states.append(board_to_tensor(board))
+            tensor_state = board_to_tensor(board)
+            tensor_states.append(tensor_state)
+            # Assume some method to determine the target value for this state
+            target_value = self.determine_target_value(board)
+            training_data.append((tensor_state, target_value))
             moves.append(str(move))
 
             evaluation = self.engine.analyse(board, chess.engine.Limit(time=0.1))
@@ -106,6 +132,14 @@ class ChessSimulation:
             material_advantage = self.calculate_material_advantage(board)
             material_advantage_data.append(material_advantage)
 
+            move_count += 1
+
+        self.save_tensors(tensor_states, game_num)
+
+        # Determine the outcome of the game and assign it to the training data
+        outcome = self.determine_game_outcome(board)
+        training_data = [(tensor_state, outcome) for tensor_state, _ in training_data]
+
         game_result = {
             "winner": self.get_winner(board.result()),
             "loser": self.get_loser(board.result()),
@@ -113,9 +147,10 @@ class ChessSimulation:
             "black_pieces": str(black),
             "moves": ", ".join(moves),
             "evaluations": evaluations,
-            "material_advantage": material_advantage_data
+            "material_advantage": material_advantage_data,
+            "move_count": move_count
         }
-        return game_result
+        return game_result, training_data
 
     def calculate_material_advantage(self, board):
         advantage = 0
@@ -137,6 +172,27 @@ class ChessSimulation:
     def get_loser(self, result):
         return "Black" if result == "1-0" else "White" if result == "0-1" else "Draw"
 
+    def determine_game_outcome(self, board):
+        # Checks the game outcome and returns a value representing it
+        if board.is_checkmate():
+            # Return 1.0 if White wins, -1.0 if Black wins
+            return 1.0 if board.turn == chess.BLACK else -1.0
+        elif board.is_game_over():
+            # Return 0 for a draw
+            return 0.0
+    
+    def determine_target_value(self, board):
+        # Simple material advantage calculation
+        piece_values = PIECE_VALUES
+        material_advantage = 0
+        for piece_type, value in piece_values.items():
+            white_pieces = len(board.pieces(piece_type, chess.WHITE))
+            black_pieces = len(board.pieces(piece_type, chess.BLACK))
+            material_advantage += (white_pieces - black_pieces) * value
+
+        return material_advantage
+
+
     def write_to_csv(self, file_name):
         with open(file_name, mode="w", newline="", encoding="utf-8") as file:
             writer = csv.DictWriter(
@@ -148,7 +204,8 @@ class ChessSimulation:
                     "black_pieces",
                     "moves",
                     "evaluations",
-                    "material_advantage"
+                    "material_advantage",
+                    "move_count"
                 ],
             )
             writer.writeheader()
@@ -160,14 +217,43 @@ class ChessSimulation:
         with open(file_path, "r") as file:
             return [line.strip() for line in file.readlines()]
 
+    def save_tensors(self, tensor_states, game_num):
+        tensor_file_path = f"../assets/chess_position_tensors/game_{game_num}_run_{self.current_run_number}.pt"
+        torch.save(tensor_states, tensor_file_path)
+        print(f"Tensors saved for game {game_num} in run {self.current_run_number}")
+
+
+def train_model(model, training_data):
+
+    if not training_data:
+        print("No training data available.")
+        return
+    # Convert training data to the appropriate format if necessary
+    input_states, target_values = zip(*training_data)
+    input_states = np.array(input_states)
+    target_values = np.array(target_values)
+
+    keras_model = model.get_model()  # Get the Keras model
+    keras_model.fit(input_states, target_values, epochs=10, batch_size=32)
+
+
 # Main execution
 if __name__ == "__main__":
     num_simulated_games = 500  # Adjust as needed
     ai_player = AlphaPawn()  # Your AI
+    # Initialize the Mean Squared Error loss function
+    loss_function = nn.MSELoss()
+
     stockfish_path = "../assets/stockfish-windows-x86-64-avx2.exe"  # Replace with your Stockfish path
     openings_database = "../assets/chess_openings.txt"
 
     simulation = ChessSimulation(num_simulated_games, ai_player, "Stockfish", stockfish_path, openings_database)
-    simulation.run_simulation()
+    training_data = simulation.run_simulation()
+
+    # Assuming you have defined your model, optimizer, and loss function
+    train_model(simulation.cnn_model, training_data)
+
+    # Save the trained model if necessary
+    simulation.cnn_model.save_model("./StrategosCNNModel/saved_model")
 
     print("Simulation complete. Tensors and game results saved.")

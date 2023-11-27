@@ -79,3 +79,9 @@ class CNNChessModel:
         except Exception as e:
             print("Error during prediction:", e)
             return None  # Return None in case of an error
+    
+    def get_model(self):
+        return self.model
+
+    def save_model(self, file_path):
+        self.model.save(file_path)
