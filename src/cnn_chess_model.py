@@ -106,8 +106,15 @@ class CNNChessModel:
         The prediction made by the model, or None in case of an error.
         """
         processed_board = np.array(processed_board)
+        # Create dummy arrays for the additional inputs that the model expects.
+        # The shapes should match the input shape that the model expects, except for the batch size dimension.
+        # Here, we assume processed_board.shape[0] is the batch size.
+        dummy_eval_score = np.zeros((processed_board.shape[0], 1))
+        dummy_outcomes = np.zeros((processed_board.shape[0], 1))
+        
         try:
-            predictions = self.model.predict(processed_board, verbose=0)
+            # Pass all three inputs to the model's predict method
+            predictions = self.model.predict([processed_board, dummy_eval_score, dummy_outcomes], verbose=0)
             return predictions
         except Exception as e:
             print("Error during prediction:", e)

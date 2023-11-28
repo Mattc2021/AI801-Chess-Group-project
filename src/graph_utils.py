@@ -37,7 +37,7 @@ def plot_win_loss_distribution(results_df, run_number, date_str):
     plt.title('Player Win-Loss Distribution')
     plt.xlabel('Player')
     plt.ylabel('Count')
-    save_plot(plt, 'player_win_loss_distribution', run_number, date_str)
+    save_plot(plt, 'player_win_loss_distribution_alpha', run_number, date_str)
 
 def plot_material_advantage_over_time(material_advantages_df, run_number, date_str):
     """
@@ -59,7 +59,7 @@ def plot_material_advantage_over_time(material_advantages_df, run_number, date_s
     plt.xlabel('Move Number')
     plt.ylabel('Material Advantage')
     plt.legend()
-    save_plot(plt, 'material_advantage_over_time', run_number, date_str)
+    save_plot(plt, 'material_advantage_over_time_alpha', run_number, date_str)
 
 def plot_position_evaluation_over_time(evaluations_df, run_number, date_str):
     """
@@ -81,7 +81,7 @@ def plot_position_evaluation_over_time(evaluations_df, run_number, date_str):
     plt.xlabel('Move Number')
     plt.ylabel('Evaluation Score')
     plt.legend()
-    save_plot(plt, 'position_evaluation_over_time', run_number, date_str)
+    save_plot(plt, 'position_evaluation_over_time_alpha', run_number, date_str)
 
 def plot_game_lengths(move_counts, run_number, date_str):
     plt.figure(figsize=(10, 6))
@@ -91,7 +91,7 @@ def plot_game_lengths(move_counts, run_number, date_str):
     plt.ylabel('Number of Moves')
     plt.xticks(ticks=range(len(move_counts)), labels=[f"Game {i+1}" for i in range(len(move_counts))])
     plt.tight_layout()
-    save_plot(plt, 'game_lengths', run_number, date_str)
+    save_plot(plt, 'game_lengths_alpha', run_number, date_str)
 
 def plot_loss_over_epochs(training_loss, date_str, validation_loss=None):
     epochs = range(1, len(training_loss) + 1)
@@ -106,4 +106,4 @@ def plot_loss_over_epochs(training_loss, date_str, validation_loss=None):
     plt.ylabel('Loss')
     plt.legend()
 
-    save_plot(plt, 'loss_over_epochs', run_number, date_str)
+    save_plot(plt, 'loss_over_epochs_alpha', run_number, date_str)

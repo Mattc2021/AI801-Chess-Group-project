@@ -332,7 +332,7 @@ if __name__ == "__main__":
     stockfish_path = "../assets/stockfish-windows-x86-64-avx2.exe"  # Replace with your Stockfish path
     openings_database = "../assets/chess_openings.txt"
 
-    simulation = ChessSimulation(num_simulated_games, "Stockfish", "Stockfish", stockfish_path, openings_database)
+    simulation = ChessSimulation(num_simulated_games, ai_player, "Stockfish", stockfish_path, openings_database)
     training_data = simulation.run_simulation()
 
     # Assuming you have defined your model, optimizer, and loss function
