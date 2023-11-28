@@ -119,25 +119,27 @@ class ChessSimulation:
             board.push(move)
             tensor_state = board_to_tensor(board)
             tensor_states.append(tensor_state)
-            # Assume some method to determine the target value for this state
+            
             target_value = self.determine_target_value(board)
-            training_data.append((tensor_state, target_value))
             moves.append(str(move))
-
-            evaluation = self.engine.analyse(board, chess.engine.Limit(time=0.1))
-            score = evaluation["score"].white().score(mate_score=10000)
-            evaluations.append(score)
 
             material_advantage = self.calculate_material_advantage(board)
             material_advantage_data.append(material_advantage)
 
+            evaluation = self.engine.analyse(board, chess.engine.Limit(time=0.1))
+            raw_score = evaluation["score"].white().score(mate_score=10000)
+            normalized_score = normalize_evaluation(raw_score)
+            evaluations.append(normalized_score)
+
+            # Assuming outcome is encoded as 1 for win, 0 for draw, -1 for loss
+            outcome_encoded = self.encode_outcome(self.determine_game_outcome(board))
+
+            # Append tensor_state, target_value, and normalized_score to training_data
+            training_data.append((tensor_state, target_value, normalized_score, outcome_encoded))
+
             move_count += 1
 
         self.save_tensors(tensor_states, game_num)
-
-        # Determine the outcome of the game and assign it to the training data
-        outcome = self.determine_game_outcome(board)
-        training_data = [(tensor_state, outcome) for tensor_state, _ in training_data]
 
         game_result = {
             "winner": self.get_winner(board.result()),
@@ -158,37 +160,15 @@ class ChessSimulation:
             advantage -= len(board.pieces(piece_type, chess.BLACK)) * PIECE_VALUES[piece_type]
         return advantage
 
+    def encode_outcome(self, outcome):
+        # Encode the outcome as a numeric value
+        return {1.0: 1, 0.0: 0, -1.0: -1}.get(outcome, 0)  # Example encoding
+
     def get_move(self, player, board):
         if isinstance(player, AlphaPawn):
             return player.choose_move(board)
         else:
-            # Decide whether to apply a human-like behavior
-            if random.random() < 0.1:  # 20% chance to apply human-like behavior
-                # Randomly choose which human-like method to apply
-                method_choice = random.choice(['limit_depth', 'random_top_moves', 'simulate_error'])
-
-                if method_choice == 'limit_depth':
-                    depth = random.choice([2, 3, 4])  # Randomly limit depth
-                    result = self.engine.play(board, chess.engine.Limit(depth=depth))
-
-                elif method_choice == 'random_top_moves':
-                    info = self.engine.analyse(board, chess.engine.Limit(depth=10))
-                    top_moves = info['pv'][:3]  # Get top 3 moves
-                    move = random.choice(top_moves)  # Choose one randomly
-                    result = self.engine.play(board, chess.engine.Limit(moves=[move]))
-
-                elif method_choice == 'simulate_error':
-                    if random.random() < 0.05:  # Chance of making a random move
-                        legal_moves = list(board.legal_moves)
-                        move = random.choice(legal_moves)
-                    else:
-                        result = self.engine.play(board, chess.engine.Limit(time=0.1))
-                    return move
-
-            else:
-                # Play a standard move
-                result = self.engine.play(board, chess.engine.Limit(time=0.1))
-
+            result = self.engine.play(board, chess.engine.Limit(time=0.2))
             return result.move
 
     def get_winner(self, result):
@@ -256,26 +236,32 @@ class ChessSimulation:
 
 
 def train_model(model, training_data):
-    """
-    Train the given CNN model using the specified training data.
-
-    Parameters:
-    - model: The CNN model to be trained.
-    - training_data: Data to train the model on.
-    """
-
     if not training_data:
         print("No training data available.")
         return
-    # Convert training data to the appropriate format if necessary
-    input_states, target_values = zip(*training_data)
-    input_states = np.array(input_states)
-    target_values = np.array(target_values)
 
-    keras_model = model.get_model()  # Get the Keras model
-    history = keras_model.fit(input_states, target_values, epochs=10, batch_size=32, validation_split=0.2)
+    # Unpack the training data
+    input_states, target_values, normalized_scores, outcomes = zip(*training_data)
+
+    # Convert to appropriate formats
+    input_states = np.array(input_states)  # Assuming this is already in the correct shape
+    target_values = np.array(target_values)
+    normalized_scores = np.array(normalized_scores).reshape(-1, 1)  # Reshape if necessary
+    outcomes = np.array(outcomes).reshape(-1, 1)  # Reshape if necessary
+
+    keras_model = model.get_model()
+    
+    # Assuming your model is adjusted to accept multiple inputs
+    history = keras_model.fit(
+        [input_states, normalized_scores, outcomes], 
+        target_values, 
+        epochs=20, 
+        batch_size=32, 
+        validation_split=0.2
+    )
 
     return history.history['loss'], history.history.get('val_loss', [])
+
 
 def board_to_matrix(board):
     """
@@ -321,11 +307,24 @@ def board_to_tensor(board):
     matrix = board_to_matrix(board)
     return torch.tensor(matrix, dtype=torch.float32)
 
+def normalize_evaluation(score, max_score=10000):
+    """
+    Normalize the evaluation score to a range between -1 and 1.
+
+    Parameters:
+    - score: The evaluation score to normalize.
+    - max_score: The maximum absolute score expected.
+
+    Returns:
+    The normalized score.
+    """
+    return score / max_score
+
 
 # Main execution
 if __name__ == "__main__":
     # Configuration and instantiation of ChessSimulation and subsequent operations
-    num_simulated_games = 1  # Adjust as needed
+    num_simulated_games = 500  # Adjust as needed
     ai_player = AlphaPawn()  # Your AI
     # Initialize the Mean Squared Error loss function
     loss_function = nn.MSELoss()
@@ -335,8 +334,6 @@ if __name__ == "__main__":
 
     simulation = ChessSimulation(num_simulated_games, "Stockfish", "Stockfish", stockfish_path, openings_database)
     training_data = simulation.run_simulation()
-
-    print(training_data)
 
     # Assuming you have defined your model, optimizer, and loss function
     training_loss, validation_loss = train_model(simulation.cnn_model, training_data)

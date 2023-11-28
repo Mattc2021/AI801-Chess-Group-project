@@ -6,6 +6,8 @@ import tensorflow as tf
 from tensorflow import keras as tfk
 from keras.models import load_model, Sequential
 from keras.layers import Conv2D, Flatten, Dense
+from keras.layers import Input, Concatenate
+from keras.models import Model
 from keras import Model as KerasModel
 import numpy as np
 
@@ -28,21 +30,27 @@ class CNNChessModel:
         # threading.Thread(target=self.CNN_autosave, daemon=True).start()
 
     def build_cnn(self):
-        """
-        Build and compile the CNN model using TensorFlow and Keras.
-        The model consists of convolutional and dense layers suitable for processing chess board states.
+        # Convolutional pathway for board state
+        board_input = Input(shape=(8, 8, 1), name='board_input')
+        conv_layer = Conv2D(64, (3, 3), activation="relu")(board_input)
+        flatten_layer = Flatten()(conv_layer)
 
-        Returns:
-        The compiled CNN model.
-        """
-        model = tfk.Sequential(
-            [
-                tfk.layers.Conv2D(64, (3, 3), activation="relu", input_shape=(8, 8, 1)),
-                tfk.layers.Flatten(),
-                tfk.layers.Dense(64, activation="relu"),
-                tfk.layers.Dense(1, activation="linear"),
-            ]
-        )
+        # Separate input for evaluation score
+        eval_input = Input(shape=(1,), name='eval_input')
+
+        # Separate input for game outcome
+        outcome_input = Input(shape=(1,), name='outcome_input')
+
+        # Combining the features
+        combined = Concatenate()([flatten_layer, eval_input, outcome_input])
+
+        # Dense layers after combining features
+        dense_layer = Dense(64, activation="relu")(combined)
+        output = Dense(1, activation="linear")(dense_layer)
+
+        # Create the model
+        model = Model(inputs=[board_input, eval_input, outcome_input], outputs=output)
+
         model.compile(optimizer="adam", loss="mean_squared_error")
         return model
 
