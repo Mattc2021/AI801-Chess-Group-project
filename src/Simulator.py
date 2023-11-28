@@ -162,7 +162,33 @@ class ChessSimulation:
         if isinstance(player, AlphaPawn):
             return player.choose_move(board)
         else:
-            result = self.engine.play(board, chess.engine.Limit(time=0.1))
+            # Decide whether to apply a human-like behavior
+            if random.random() < 0.1:  # 20% chance to apply human-like behavior
+                # Randomly choose which human-like method to apply
+                method_choice = random.choice(['limit_depth', 'random_top_moves', 'simulate_error'])
+
+                if method_choice == 'limit_depth':
+                    depth = random.choice([2, 3, 4])  # Randomly limit depth
+                    result = self.engine.play(board, chess.engine.Limit(depth=depth))
+
+                elif method_choice == 'random_top_moves':
+                    info = self.engine.analyse(board, chess.engine.Limit(depth=10))
+                    top_moves = info['pv'][:3]  # Get top 3 moves
+                    move = random.choice(top_moves)  # Choose one randomly
+                    result = self.engine.play(board, chess.engine.Limit(moves=[move]))
+
+                elif method_choice == 'simulate_error':
+                    if random.random() < 0.05:  # Chance of making a random move
+                        legal_moves = list(board.legal_moves)
+                        move = random.choice(legal_moves)
+                    else:
+                        result = self.engine.play(board, chess.engine.Limit(time=0.1))
+                    return move
+
+            else:
+                # Play a standard move
+                result = self.engine.play(board, chess.engine.Limit(time=0.1))
+
             return result.move
 
     def get_winner(self, result):
@@ -247,7 +273,9 @@ def train_model(model, training_data):
     target_values = np.array(target_values)
 
     keras_model = model.get_model()  # Get the Keras model
-    keras_model.fit(input_states, target_values, epochs=10, batch_size=32)
+    history = keras_model.fit(input_states, target_values, epochs=10, batch_size=32, validation_split=0.2)
+
+    return history.history['loss'], history.history.get('val_loss', [])
 
 def board_to_matrix(board):
     """
@@ -282,36 +310,22 @@ def board_to_matrix(board):
 
 def board_to_tensor(board):
     """
-    Convert a chess board state to a multi-layer tensor representation suitable for CNN input.
-
-    Each layer of the tensor represents a different type of piece or game feature.
+    Convert a chess board state to a tensor representation suitable for CNN input.
 
     Parameters:
     - board: The chess board state.
 
     Returns:
-    - tensor (torch.tensor): Multi-layer tensor representation of the board.
+    - tensor (torch.tensor): Tensor representation of the board.
     """
-    layers = []
-    piece_types = [chess.PAWN, chess.KNIGHT, chess.BISHOP, chess.ROOK, chess.QUEEN, chess.KING]
-    for piece_type in piece_types:
-        # Create binary layers for white and black pieces of each type
-        for color in [chess.WHITE, chess.BLACK]:
-            layer = np.zeros((8, 8), dtype=int)
-            for square in chess.SQUARES:
-                piece = board.piece_at(square)
-                if piece and piece.piece_type == piece_type and piece.color == color:
-                    layer[chess.square_rank(square), chess.square_file(square)] = 1
-            layers.append(layer)
-
-    tensor = torch.tensor(layers, dtype=torch.float32)
-    return tensor.unsqueeze(0)  # Add a batch dimension
+    matrix = board_to_matrix(board)
+    return torch.tensor(matrix, dtype=torch.float32)
 
 
 # Main execution
 if __name__ == "__main__":
     # Configuration and instantiation of ChessSimulation and subsequent operations
-    num_simulated_games = 25  # Adjust as needed
+    num_simulated_games = 1  # Adjust as needed
     ai_player = AlphaPawn()  # Your AI
     # Initialize the Mean Squared Error loss function
     loss_function = nn.MSELoss()
@@ -322,8 +336,12 @@ if __name__ == "__main__":
     simulation = ChessSimulation(num_simulated_games, "Stockfish", "Stockfish", stockfish_path, openings_database)
     training_data = simulation.run_simulation()
 
+    print(training_data)
+
     # Assuming you have defined your model, optimizer, and loss function
-    train_model(simulation.cnn_model, training_data)
+    training_loss, validation_loss = train_model(simulation.cnn_model, training_data)
+
+    graph_utils.plot_loss_over_epochs(training_loss, datetime.now().strftime('%Y%m%d'), validation_loss,)
 
     # Save the trained model if necessary
     simulation.cnn_model.save_model("./StrategosCNNModel/saved_model")

@@ -82,3 +82,17 @@ def plot_position_evaluation_over_time(evaluations_df, run_number, date_str):
     plt.ylabel('Evaluation Score')
     plt.legend()
     save_plot(plt, 'position_evaluation_over_time', run_number, date_str)
+
+def plot_loss_over_epochs(training_loss, date_str, validation_loss=None):
+    epochs = range(1, len(training_loss) + 1)
+
+    plt.figure(figsize=(10, 6))
+    plt.plot(epochs, training_loss, 'bo-', label='Training Loss')
+    if validation_loss:
+        plt.plot(epochs, validation_loss, 'r*-', label='Validation Loss')
+    plt.title('Training and Validation Loss')
+    plt.xlabel('Epochs')
+    plt.ylabel('Loss')
+    plt.legend()
+
+    save_plot(plt, 'loss_over_epochs', date_str)
