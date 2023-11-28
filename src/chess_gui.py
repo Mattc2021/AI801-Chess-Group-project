@@ -10,13 +10,16 @@ import traceback
 class ChessGUI:
     """
     Creates a Graphical User Interface for the chess game using tkinter.
+    This GUI supports playing chess against an AI, displaying the board,
+    handling user inputs, and showing the game's progress.
     """
     def __init__(self, root: tk.Tk, piece_images: dict):
         """
-        @brief Initialize the Chess GUI.
+        Initialize the Chess GUI.
 
-        @parameter: root (tk.Tk): The tkinter root widget.
-        @parameter: piece_images (dict): Dictionary mapping piece symbols to images.
+        Parameters:
+        - root (tk.Tk): The tkinter root widget.
+        - piece_images (dict): Dictionary mapping piece symbols to images.
         """
         print("--ChessGUI __init__--")
         self.eval_bar = ttk.Progressbar(root, orient="horizontal", length=300, mode="determinate")
@@ -50,9 +53,9 @@ class ChessGUI:
 
     def choose_side(self):
         """
-        Prompt the user to select a side.
-        """
-        
+        Prompt the user to select a side at the beginning of the game.
+        Allows the user to play as either White or Black.
+        """        
         print("--choose_side--")
         response = messagebox.askquestion("Choose Side", "Do you want to play as White?")
         if response == 'yes':
@@ -64,7 +67,11 @@ class ChessGUI:
 
     def get_evaluation(self):
         """
-        @brief: Method to calculate a simple evaluation score for the current chess board state.
+        Calculate a simple evaluation score for the current chess board state.
+        Considers the number of pieces, mobility, and king safety.
+
+        Returns:
+        - evaluation (float): The calculated evaluation score for the current board.
         """
         print("--get_evaluation--")
         
@@ -91,6 +98,10 @@ class ChessGUI:
 
 
     def update_eval_bar(self):
+        """
+        Update the evaluation progress bar based on the current board state.
+        Normalizes the evaluation score to fit the progress bar's scale.
+        """
         print("--update_eval_bar--")
         try:
             evaluation = self.get_evaluation()
@@ -101,11 +112,19 @@ class ChessGUI:
             traceback.print_exc()  # Print the exception traceback
             
     def update_eval_bar_periodically(self):
+        """
+        Periodically update the evaluation progress bar.
+        This runs in a separate thread to continuously update the UI.
+        """
         while True:
             self.update_eval_bar()
             time.sleep(5)  # Update the progress bar every 5 seconds
         
     def print_turn_periodically(self):
+        """
+        Print information about the current turn periodically.
+        This includes the player's turn and color. Runs in a separate thread.
+        """
         while True:
             print("---")
             print(f"Player's Turn: {self.board.turn==self.player_color}")  # Print the current player's turn
@@ -119,6 +138,10 @@ class ChessGUI:
 
             
     def start_game(self):
+        """
+        Start a new game of chess.
+        Resets the board, selects sides, and prepares the UI for a new game.
+        """
         print("--start_game--")
         self.choose_side()
         self.board = chess.Board()
@@ -142,6 +165,11 @@ class ChessGUI:
             self.draw_board()
 
     def create_or_reset_progress_bar(self):
+        """
+        Create or reset the evaluation progress bar.
+        If the progress bar already exists, it is reset to 0%. If not, a new progress bar is created.
+        This is used to reflect the current state of the game in terms of piece advantage.
+        """
         # Check if the progress bar already exists
         if hasattr(self, 'eval_bar') and self.eval_bar:
             # If it exists, reset it to 0%
@@ -156,7 +184,10 @@ class ChessGUI:
 
     def draw_board(self):
         """
-        @brief: Draw the chessboard and place the pieces on the board
+        Draw the chessboard and place the pieces on the board.
+        The board is drawn as an 8x8 grid with alternating colored squares.
+        Pieces are placed on their respective squares according to the current board state.
+        If a piece is selected, possible moves for that piece are highlighted.
         """
         print("--draw_board--")
         
@@ -185,6 +216,12 @@ class ChessGUI:
 
 
     def ai_move(self):
+        """
+        Execute the AI's move in the game.
+        The AI selects a move based on the current board state and applies it to the board.
+        After the move, the board is redrawn, and the game state is checked for a game over condition.
+        The evaluation bar is also updated to reflect the new state.
+        """
         print("--ai_move--")
         move = self.ai.choose_move(self.board)
         self.board.push(move)
@@ -195,9 +232,12 @@ class ChessGUI:
         
     def on_square_clicked(self, event: tk.Event):
         """
-        @brief: Handle square click events to make player moves.
-    
-        @paramter: event (tk.Event): The click event.
+        Handle square click events to make player moves.
+
+        Parameters:
+        - event (tk.Event): The click event, containing the coordinates of the mouse click.
+        This method determines which square was clicked and either selects a piece, makes a move,
+        or deselects a piece based on the game's current state and the rules of chess.
         """
         print("--on_square_clicked--")
         
@@ -257,7 +297,9 @@ class ChessGUI:
 
     def game_over(self):
         """
-        @brief: Handle game over scenarios and display the results
+        Handle the end of the game, displaying the result and resetting the game state.
+        The result of the game (win, loss, or draw) is displayed to the user.
+        The board and evaluation bar are reset, and the game is restarted.
         """
         print("--game_over--")
         result = "Draw" if self.board.result() == "1/2-1/2" else "Win for " + ("White" if "1-0" == self.board.result() else "Black")
@@ -273,7 +315,14 @@ class ChessGUI:
         
     def promote_pawn(self, color: chess.Color) -> chess.PieceType:
         """
-        Open a custom dialog to let the user choose a piece for pawn promotion.
+        Open a dialog to let the user choose a piece for pawn promotion.
+
+        Parameters:
+        - color (chess.Color): The color of the pawn being promoted.
+
+        Returns:
+        - chess.PieceType: The type of chess piece chosen for promotion.
+        This dialog allows the user to choose between a Queen, Rook, Bishop, or Knight.
         """
         print("--promote_pawn--")
         
@@ -316,5 +365,9 @@ class PawnPromotionDialog:
         confirm_button.pack()
 
     def confirm(self):
+        """
+        Confirm the selected piece for promotion.
+        Closes the dialog and records the selected piece type for pawn promotion.
+        """
         self.piece_chosen = self.promotion_choice.get()
         self.dialog.destroy()

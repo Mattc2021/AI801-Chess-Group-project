@@ -12,40 +12,22 @@ import graph_utils
 import pandas as pd
 from cnn_chess_model import CNNChessModel
 import torch.nn as nn
-import torch.optim as optim
-
-
-def board_to_matrix(board):
-    piece_to_value = {
-        chess.PAWN: 1,
-        chess.KNIGHT: 2,
-        chess.BISHOP: 3,
-        chess.ROOK: 4,
-        chess.QUEEN: 5,
-        chess.KING: 6,
-    }
-    matrix = np.zeros((8, 8), dtype=int)
-
-    for square in chess.SQUARES:
-        piece = board.piece_at(square)
-        if piece:
-            value = piece_to_value[piece.piece_type]
-            if piece.color == chess.BLACK:
-                value = -value
-            matrix[chess.square_rank(square), chess.square_file(square)] = value
-
-    return matrix
-
-
-def board_to_tensor(board):
-    matrix = board_to_matrix(board)
-    return torch.tensor(matrix, dtype=torch.float32)
-
 
 class ChessSimulation:
-    run_counter = 0
-
+    """
+    A class for simulating chess games, analyzing game results, and generating training data for a neural network model.
+    """
+    run_counter = 0 # Static variable to keep track of simulation runs
     def __init__(self, num_games, player1, player2, stockfish_path, openings_file_path):
+        """
+        Initialize the ChessSimulation instance.
+
+        Parameters:
+        - num_games: Number of games to simulate.
+        - player1, player2: The two players (can be AI or Stockfish).
+        - stockfish_path: Path to the Stockfish engine executable.
+        - openings_file_path: Path to a file containing chess openings in FEN format.
+        """
         self.num_games = num_games
         self.player1 = player1
         self.player2 = player2
@@ -57,6 +39,12 @@ class ChessSimulation:
         self.cnn_model = CNNChessModel()
 
     def run_simulation(self):
+        """
+        Run the chess simulation, playing the specified number of games and generating training data.
+
+        Returns:
+        - all_training_data: A collection of training data generated from the simulated games.
+        """
         self.engine = chess.engine.SimpleEngine.popen_uci(self.stockfish_path)
         date_str = datetime.now().strftime("%Y%m%d")
 
@@ -101,6 +89,17 @@ class ChessSimulation:
         return all_training_data
     
     def play_game(self, white, black, game_num):
+        """
+        Play a single game of chess between two players.
+
+        Parameters:
+        - white, black: The two players, with white playing first.
+        - game_num: The game number in the series of simulations.
+
+        Returns:
+        - game_result: A dictionary containing details about the game outcome and statistics.
+        - training_data: Training data generated from the game for neural network training.
+        """
         board = chess.Board()
         opening = random.choice(self.openings)
         board.set_fen(opening)
@@ -194,6 +193,12 @@ class ChessSimulation:
 
 
     def write_to_csv(self, file_name):
+        """
+        Write the results of the games to a CSV file.
+
+        Parameters:
+        - file_name: The name of the CSV file to write to.
+        """
         with open(file_name, mode="w", newline="", encoding="utf-8") as file:
             writer = csv.DictWriter(
                 file,
@@ -214,16 +219,24 @@ class ChessSimulation:
                 writer.writerow(game_result)
 
     def load_openings(self, file_path):
+
         with open(file_path, "r") as file:
             return [line.strip() for line in file.readlines()]
 
     def save_tensors(self, tensor_states, game_num):
-        tensor_file_path = f"../assets/chess_position_tensors/game_{game_num}_run_{self.current_run_number}.pt"
+        tensor_file_path = f"../assets/chess_position_tensors/game_{game_num}_run_{self.current_run_number}_{datetime.now().strftime('%Y%m%d')}.pt"
         torch.save(tensor_states, tensor_file_path)
         print(f"Tensors saved for game {game_num} in run {self.current_run_number}")
 
 
 def train_model(model, training_data):
+    """
+    Train the given CNN model using the specified training data.
+
+    Parameters:
+    - model: The CNN model to be trained.
+    - training_data: Data to train the model on.
+    """
 
     if not training_data:
         print("No training data available.")
@@ -236,10 +249,69 @@ def train_model(model, training_data):
     keras_model = model.get_model()  # Get the Keras model
     keras_model.fit(input_states, target_values, epochs=10, batch_size=32)
 
+def board_to_matrix(board):
+    """
+    Convert a chess board state to a matrix representation.
+
+    Parameters:
+    - board: The chess board state.
+
+    Returns:
+    - matrix (np.array): Matrix representation of the board.
+    """
+    piece_to_value = {
+        chess.PAWN: 1,
+        chess.KNIGHT: 2,
+        chess.BISHOP: 3,
+        chess.ROOK: 4,
+        chess.QUEEN: 5,
+        chess.KING: 6,
+    }
+    matrix = np.zeros((8, 8), dtype=int)
+
+    for square in chess.SQUARES:
+        piece = board.piece_at(square)
+        if piece:
+            value = piece_to_value[piece.piece_type]
+            if piece.color == chess.BLACK:
+                value = -value
+            matrix[chess.square_rank(square), chess.square_file(square)] = value
+
+    return matrix
+
+
+def board_to_tensor(board):
+    """
+    Convert a chess board state to a multi-layer tensor representation suitable for CNN input.
+
+    Each layer of the tensor represents a different type of piece or game feature.
+
+    Parameters:
+    - board: The chess board state.
+
+    Returns:
+    - tensor (torch.tensor): Multi-layer tensor representation of the board.
+    """
+    layers = []
+    piece_types = [chess.PAWN, chess.KNIGHT, chess.BISHOP, chess.ROOK, chess.QUEEN, chess.KING]
+    for piece_type in piece_types:
+        # Create binary layers for white and black pieces of each type
+        for color in [chess.WHITE, chess.BLACK]:
+            layer = np.zeros((8, 8), dtype=int)
+            for square in chess.SQUARES:
+                piece = board.piece_at(square)
+                if piece and piece.piece_type == piece_type and piece.color == color:
+                    layer[chess.square_rank(square), chess.square_file(square)] = 1
+            layers.append(layer)
+
+    tensor = torch.tensor(layers, dtype=torch.float32)
+    return tensor.unsqueeze(0)  # Add a batch dimension
+
 
 # Main execution
 if __name__ == "__main__":
-    num_simulated_games = 500  # Adjust as needed
+    # Configuration and instantiation of ChessSimulation and subsequent operations
+    num_simulated_games = 25  # Adjust as needed
     ai_player = AlphaPawn()  # Your AI
     # Initialize the Mean Squared Error loss function
     loss_function = nn.MSELoss()
@@ -247,7 +319,7 @@ if __name__ == "__main__":
     stockfish_path = "../assets/stockfish-windows-x86-64-avx2.exe"  # Replace with your Stockfish path
     openings_database = "../assets/chess_openings.txt"
 
-    simulation = ChessSimulation(num_simulated_games, ai_player, "Stockfish", stockfish_path, openings_database)
+    simulation = ChessSimulation(num_simulated_games, "Stockfish", "Stockfish", stockfish_path, openings_database)
     training_data = simulation.run_simulation()
 
     # Assuming you have defined your model, optimizer, and loss function
