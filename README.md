@@ -12,7 +12,7 @@ python -m venv ./venv
 Then navigate to the Scripts folder that has appeared in ./venv and run the activate.bat.
 From there you should have a local python version solely for this project.
 
-
+--------------------------------
 # To Run the Game
 
 There are two ways you can run the game
@@ -21,9 +21,9 @@ There are two ways you can run the game
   2) If you want to play against our AI all you have to do is run main which is found in our src folder (for more accurate descriptions of the file structure look below) When you run main.py a tkinter window will display which allows us to play against the AI.
 
 The AI is still very basic and will make mistakes, but the premise is there to create a great chess AI.
-     
-Team Member
---------------------
+
+--------------------------------
+# Team Members
 Coding Work
 
 Matthew Chiaravalloti 
@@ -40,22 +40,44 @@ TJ (Timothy) Gallagher
 
 Jennifer Yin
   1) ???
-
-File Structure
+ 
+--------------------------------
+# File Structure
 
 Ai801-Chess-Group-Project
-----assets                          -This is where the data gets saved off into a csv, also the png's for the pieces are in this folder as well
+
+----assets                          
+--------chess_position_tensors     
+----graphs                          
+----src                             
+--------archive                     
+--------StrategosCNNModel          
+------------assets                 
+------------variables               
+
+--------------------------------
+# File Explanation
+
+Ai801-Chess-Group-Project
+
+----assets -This is where the data gets saved off into a csv, also the png's for the pieces are in this folder as well
+
 --------chess_position_tensors      -This is where the tensors get saved off from the Simulator running
+
 ----graphs                          -This is where the graphs get saved off to describe game_lengths, loss_over_epochs, material_advantage_over_time, player_win_loss_distribution, position_evaluation_over_time
+
 ----src                             -This is where the main code is and the folder in which you should run the simulator.py or the main.py
+
 --------archive                     -This is extra code that I would like to go back and fix, but code that is not related to the main code
+
+
 --------StrategosCNNModel           -This is where the model gets saved and loaded from
+
 ------------assets                  -These are helpers for the StrategosCNNModel
+
 ------------variables               -These are helpers for the StrategosCNNModel
 
 
-
-
-
-Copyright/Attribution Notice: 
+--------------------------------
+# Copyright/Attribution Notice: 
 JohnPablok's improved Cburnett chess set.
