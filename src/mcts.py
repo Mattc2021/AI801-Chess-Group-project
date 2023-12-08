@@ -283,12 +283,12 @@ class MCTS:
         }
 
         # Evaluation weights for different factors
-        material_weight = 1.0
-        mobility_weight = 0.5
-        pawn_structure_weight = 0.3
-        king_safety_weight = 0.2
-        center_control_weight = 0.4
-        cnn_weight = 0.6  # Adjust this weight for the CNN output
+        material_weight = 1.2
+        mobility_weight = 0.2
+        pawn_structure_weight = 0.8
+        king_safety_weight = 0.7
+        center_control_weight = 0.8
+        cnn_weight = 0.1  # Adjust this weight for the CNN output
 
         score = 0
 
