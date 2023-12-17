@@ -114,7 +114,7 @@ class CNNChessModel:
         
         try:
             # Pass all three inputs to the model's predict method
-            predictions = self.model.predict([processed_board, dummy_eval_score, dummy_outcomes], verbose=0)
+            predictions = self.model.predict(processed_board, verbose=0)
             return predictions
         except Exception as e:
             print("Error during prediction:", e)

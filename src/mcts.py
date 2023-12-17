@@ -50,7 +50,7 @@ class MCTS:
         """
         possible_moves = list(board.legal_moves)
         move_visits = {move: 0 for move in possible_moves}
-        total_simulations = 50  # Number of simulations - adjust as needed. NOTE: HIGHER SIMULATION COUNT WILL RESULT IN LONGER PROCESSING TIMES.
+        total_simulations = 20  # Number of simulations - adjust as needed. NOTE: HIGHER SIMULATION COUNT WILL RESULT IN LONGER PROCESSING TIMES.
 
         for _ in range(total_simulations):
             self.simulate(board.copy(), move_visits)

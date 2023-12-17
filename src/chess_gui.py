@@ -1,5 +1,7 @@
 import tkinter as tk
-from tkinter import messagebox, ttk
+from tkinter import ttk
+from tkinter import messagebox
+import tkinter 
 import chess
 import chess.svg
 from alpha_pawn import AlphaPawn
@@ -22,6 +24,7 @@ class ChessGUI:
         - piece_images (dict): Dictionary mapping piece symbols to images.
         """
         print("--ChessGUI __init__--")
+        
         self.eval_bar = ttk.Progressbar(root, orient="horizontal", length=300, mode="determinate")
         self.root = root
         self.board = chess.Board()
